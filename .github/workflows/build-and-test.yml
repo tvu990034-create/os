@@ -7,10 +7,6 @@ on:
     branches: [ phase-3-build-verification ]
   workflow_dispatch:
 
-env:
-  OPENWRT_COMMIT: ca454c0
-  OPENWRT_REPO: https://github.com/openwrt/openwrt.git
-
 jobs:
   build:
     runs-on: ubuntu-22.04
@@ -19,28 +15,22 @@ jobs:
     - name: Checkout Router OS
       uses: actions/checkout@v4
 
-    - name: Cache OpenWrt
-      id: cache-openwrt
-      uses: actions/cache@v4
-      with:
-        path: openwrt
-        key: openwrt-${{ env.OPENWRT_COMMIT }}
-
-    - name: Clone OpenWrt
-      if: steps.cache-openwrt.outputs.cache-hit != 'true'
-      run: |
-        git clone ${{ env.OPENWRT_REPO }} openwrt
-        cd openwrt
-        git checkout ${{ env.OPENWRT_COMMIT }}
-
     - name: Install Build Dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y build-essential ccache ecj fastjar file g++ gawk gettext git java-utils jq libncurses5-dev libncursesw5-dev libssl-dev python3 unzip wget python3-distutils python3-setuptools python3-yaml rsync subversion swig time xsltproc zlib1g-dev
+        sudo apt-get install -y build-essential ccache ecj fastjar file g++ gawk gettext git java-utils jq libncurses5-dev libncursesw5-dev libssl-dev python3-distutils python3-setuptools python3-yaml rsync subversion swig xsltproc zlib1g-dev
 
     - name: Run Build Host Tests
       run: |
         ./test-build-host.sh
+
+    - name: Fetch Required Sources
+      run: |
+        ./scripts/fetch-sources.sh --required-only
+
+    - name: Verify Required Sources
+      run: |
+        ./scripts/verify-sources.sh --required-only
 
     - name: Setup Router OS
       run: |
@@ -119,7 +109,6 @@ jobs:
         IMAGE=$(ls bin/targets/x86/64/*.img | head -1)
         echo "Booting image: $IMAGE"
         
-        # Boot QEMU in background with serial output
         timeout 300 qemu-system-x86_64 \
           -m 512M \
           -drive file="$IMAGE",format=raw \

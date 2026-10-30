@@ -54,14 +54,14 @@ notes = Can be fetched locally or remotely. If local, use pinned commit.
 
 [linux]
 name = Linux Kernel (Reference)
-url = https://github.com/openwrt/linux.git
+url = https://github.com/torvalds/linux.git
 commit = c339f4010dea8b0d754f84ace70cd1b089878ef8
 branch = master
 type = reference
-purpose = Reference for kernel development (not used in build)
+purpose = Reference for upstream Linux kernel (not used in build)
 integration = Not integrated into build (OpenWrt manages its own kernel)
 managed_by = Router OS (reference only)
-notes = NOT REQUIRED for OpenWrt build. OpenWrt uses kernel 6.18.55 via its own mechanism. This is the OpenWrt-maintained kernel tree, not upstream.
+notes = NOT REQUIRED for OpenWrt build. OpenWrt uses kernel 6.18.55 via its own mechanism. This is the upstream torvalds/linux.git tree for reference only.
 ignore_changes = *
 
 [iproute2]

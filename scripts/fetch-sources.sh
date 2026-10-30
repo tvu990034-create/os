@@ -1,9 +1,7 @@
 #!/bin/bash
 # Fetch and manage upstream source repositories
 # This script clones missing repositories and updates to pinned revisions
-# Usage: ./scripts/fetch-sources.sh [--required-only] [--reference-only]
-
-set -e
+# Usage: ./scripts/fetch-sources.sh [--required-only] [--reference-only] [--all]
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
@@ -45,6 +43,16 @@ echo "Manifest: $MANIFEST"
 echo "Fetch required: $FETCH_REQUIRED"
 echo "Fetch reference: $FETCH_REFERENCE"
 echo ""
+
+# Validate commit SHA format (40 hex characters)
+validate_commit_sha() {
+    local commit="$1"
+    if [[ ! "$commit" =~ ^[0-9a-f]{40}$ ]]; then
+        echo "  ✗ Invalid commit SHA format: $commit"
+        return 1
+    fi
+    return 0
+}
 
 # Function to check for uncommitted changes
 check_clean() {
@@ -88,6 +96,12 @@ fetch_repo() {
     local repo_required="$5"
     local ignore_patterns="$6"
     
+    # Validate commit SHA format
+    if ! validate_commit_sha "$repo_commit"; then
+        echo "  ERROR: Invalid commit SHA in manifest"
+        return 1
+    fi
+    
     # Skip if not in fetch mode
     if [ "$repo_type" = "required" ] && [ "$FETCH_REQUIRED" = false ]; then
         echo "Skipping: $repo_name (fetching reference only)"
@@ -122,33 +136,34 @@ fetch_repo() {
             current_url=$(git remote get-url origin 2>/dev/null || echo "unknown")
             cd "$PROJECT_ROOT"
             
+            # Always validate URL even if commit is correct
+            if [ "$current_url" != "$repo_url" ]; then
+                echo "  ✗ URL mismatch:"
+                echo "    Expected: $repo_url"
+                echo "    Current:  $current_url"
+                echo "  ERROR: Repository origin URL does not match manifest"
+                return 1
+            fi
+            
             if [ "$current_commit" = "$repo_commit" ]; then
                 echo "  ✓ Already at correct revision"
             else
                 echo "  Current: $current_commit"
                 echo "  Expected: $repo_commit"
-                
-                if [ "$current_url" != "$repo_url" ]; then
-                    echo "  ⚠ URL differs:"
-                    echo "    Expected: $repo_url"
-                    echo "    Current:  $current_url"
-                    echo "  ERROR: Repository origin URL mismatch"
-                    return 1
-                fi
-                
                 echo "  Updating to correct revision..."
                 cd "$repo_dir"
-                git fetch origin || {
+                if ! git fetch origin; then
                     echo "  ERROR: Failed to fetch from origin"
                     cd "$PROJECT_ROOT"
                     return 1
-                }
+                fi
                 
-                git checkout "$repo_commit" || {
+                if ! git checkout "$repo_commit"; then
                     echo "  ERROR: Failed to checkout commit $repo_commit"
+                    echo "  ERROR: Commit may not exist in repository"
                     cd "$PROJECT_ROOT"
                     return 1
-                }
+                fi
                 
                 echo "  ✓ Updated to correct revision"
                 cd "$PROJECT_ROOT"
@@ -164,17 +179,18 @@ fetch_repo() {
         fi
     else
         echo "  Repository missing, cloning..."
-        git clone "$repo_url" "$repo_dir" || {
+        if ! git clone "$repo_url" "$repo_dir"; then
             echo "  ERROR: Failed to clone repository"
             return 1
-        }
+        fi
         
         cd "$repo_dir"
-        git checkout "$repo_commit" || {
+        if ! git checkout "$repo_commit"; then
             echo "  ERROR: Failed to checkout commit $repo_commit"
+            echo "  ERROR: Commit may not exist in repository"
             cd "$PROJECT_ROOT"
             return 1
-        }
+        fi
         echo "  ✓ Cloned and checked out to correct revision"
         cd "$PROJECT_ROOT"
     fi

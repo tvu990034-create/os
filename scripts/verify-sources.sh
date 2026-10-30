@@ -1,11 +1,16 @@
 #!/bin/bash
 # Verify that all source repositories are at correct revisions
 # This script checks without modifying repositories
-# Usage: ./scripts/verify-sources.sh [--required-only] [--reference-only]
+# Usage: ./scripts/verify-sources.sh [--required-only] [--reference-only] [--all]
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
-MANIFEST="$PROJECT_ROOT/manifests/sources.lock"
+MANIFEST="${MANIFEST:-$PROJECT_ROOT/manifests/sources.lock}"
+
+if [ ! -f "$MANIFEST" ]; then
+    echo "ERROR: Manifest file not found: $MANIFEST"
+    exit 1
+fi
 
 VERIFY_REQUIRED=true
 VERIFY_REFERENCE=false
@@ -48,6 +53,16 @@ PASSED=0
 FAILED=0
 SKIPPED=0
 
+# Validate commit SHA format (40 hex characters)
+validate_commit_sha() {
+    local commit="$1"
+    if [[ ! "$commit" =~ ^[0-9a-fA-F]{40}$ ]]; then
+        echo "  ✗ Invalid commit SHA format: $commit" >&2
+        return 1
+    fi
+    return 0
+}
+
 # Function to verify a single repository
 verify_repo() {
     local repo_name="$1"
@@ -58,6 +73,12 @@ verify_repo() {
     local ignore_patterns="$6"
     
     local result="pass"
+    
+    # Validate commit SHA format
+    if ! validate_commit_sha "$repo_commit"; then
+        echo "  ✗ Invalid commit SHA format: $repo_commit"
+        result="fail"
+    fi
     
     # Skip if not in verify mode
     if [ "$repo_type" = "required" ] && [ "$VERIFY_REQUIRED" = false ]; then
@@ -97,7 +118,6 @@ verify_repo() {
             
             # Check for uncommitted changes (excluding ignored paths)
             if [ -n "$ignore_patterns" ]; then
-                # Simple approach: remove ignored files from status
                 status=$(git status --porcelain)
                 if [ -n "$status" ]; then
                     IFS=',' read -ra PATHS <<< "$ignore_patterns"
@@ -121,11 +141,11 @@ verify_repo() {
                 result="fail"
             fi
             
-            # Check URL
+            # Check URL (always validate)
             if [ "$current_url" = "$repo_url" ]; then
                 echo "  ✓ URL matches: $repo_url"
             else
-                echo "  ⚠ URL differs"
+                echo "  ✗ URL mismatch"
                 echo "    Expected: $repo_url"
                 echo "    Current:  $current_url"
                 result="fail"

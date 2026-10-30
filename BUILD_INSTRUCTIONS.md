@@ -59,6 +59,10 @@ Install qemu-system-x86 and use the ext4 combined image produced by the build. F
 
 Use the serial console for first boot. Set a root password before enabling remote administration. A one-NIC QEMU instance is configured as LAN only by design.
 
+## Package SDK validation
+
+The GitHub Actions SDK job uses `config/sdk-package-build.config`, a deliberately minimal x86-64 selection that compiles each RouterOS feed package and its declared dependencies. It is separate from `config/x86_64.config`, which selects the full firmware image and LuCI management stack.
+
 ## DSA plugin development
 
 The router-dsa-sdk package installs /usr/include/router-os/dsa.h. A plugin exports router_dsa_get_algorithm_v1() and implements the lifecycle callbacks in the ABI descriptor.

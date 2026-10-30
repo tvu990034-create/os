@@ -32,6 +32,19 @@ for package in router-core router-net router-tests router-ui router-dsa-sdk rout
 	fi
 done
 
+SDK_CONFIG="$ROOT_DIR/config/sdk-package-build.config"
+if [ -f "$SDK_CONFIG" ]; then
+	for package in router-core router-net router-dsa-sdk router-dsa-runtime router-tests router-ui; do
+		if grep -Fqx "CONFIG_PACKAGE_${package}=y" "$SDK_CONFIG"; then
+			pass "SDK profile selects $package"
+		else
+			fail "SDK profile does not select $package"
+		fi
+	done
+else
+	fail "minimal SDK package-build configuration is missing"
+fi
+
 for script in \
 	"$ROOT_DIR/setup.sh" \
 	"$ROOT_DIR/validate-packages.sh" \

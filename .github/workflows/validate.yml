@@ -10,6 +10,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: routeros-validate-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   validate:
     runs-on: ubuntu-24.04
@@ -20,7 +24,7 @@ jobs:
       - name: Install host validation tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential python3 nodejs nodejs
+          sudo apt-get install -y build-essential python3 nodejs
 
       - name: Validate source, shell and UCI configuration
         run: ./validate-packages.sh

@@ -33,7 +33,8 @@ setup.sh clones OpenWrt v25.12.6 into the ignored openwrt/ directory when it is 
 - custom-feed/router-tests: optional on-device smoke tests.
 - custom-feed/router-ui: read-only LuCI dashboard under Status -> RouterOS.
 - custom/configs: generic, x86 and ARM network templates.
-- config/x86_64.config: reference build configuration.
+- config/x86_64.config: full reference firmware configuration.
+- config/sdk-package-build.config: minimal configuration used by CI to compile only custom packages and their dependencies.
 - scripts/: build and validation scripts.
 - tests/dsa-sdk/: host-side plugin ABI smoke test.
 

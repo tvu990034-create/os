@@ -1,73 +1,20 @@
 # router-tests
 
-Automated test suite for Router OS.
+Optional on-device smoke tests for a booted RouterOS image.
 
-## Purpose
+## Included checks
 
-This package provides automated tests for validating Router OS functionality including:
-- Configuration syntax validation
-- Hardware detection
-- Network configuration validation
-- System initialization tests
+- test-config-syntax.sh: asks UCI to parse every RouterOS configuration file.
+- test-hardware-detect.sh: runs the read-only hardware inventory and checks its output.
+- test-network-validation.sh: validates the LAN bridge and permits WAN to be absent on single-NIC hardware.
 
-## Tests
+## Run on a booted device
 
-### test-config-syntax.sh
-Validates UCI configuration files for syntax errors.
+    /usr/libexec/router-tests/test-config-syntax.sh
+    /usr/libexec/router-tests/test-hardware-detect.sh
+    /usr/libexec/router-tests/test-network-validation.sh
 
-**Usage**:
-```bash
-/usr/libexec/router-tests/test-config-syntax.sh
-```
+The package is optional and is not selected in production images by default.
+It depends on router-core and router-net and installs only shell-based diagnostics.
 
-**Validates**:
-- /etc/config/network
-- /etc/config/firewall
-- /etc/config/dhcp
-- /etc/config/system
-
-### test-hardware-detect.sh
-Validates hardware detection script functionality.
-
-**Usage**:
-```bash
-/usr/libexec/router-tests/test-hardware-detect.sh
-```
-
-**Validates**:
-- Hardware detection script exists and is executable
-- Detection completes without errors
-- Detection log is created
-- Expected sections are present in output
-
-### test-network-validation.sh
-Validates network configuration and interface availability.
-
-**Usage**:
-```bash
-/usr/libexec/router-tests/test-network-validation.sh
-```
-
-**Validates**:
-- Loopback interface exists
-- Non-loopback interfaces exist
-- Network config file exists
-- Loopback configured in UCI
-- LAN configured in UCI
-- WAN configured in UCI
-
-## Running All Tests
-
-```bash
-# Run all tests
-/usr/libexec/router-tests/test-config-syntax.sh
-/usr/libexec/router-tests/test-hardware-detect.sh
-/usr/libexec/router-tests/test-network-validation.sh
-```
-
-## Dependencies
-
-- bash
-- coreutils
-- iproute2
-- kmod-nft-core
+Host-side tests for first-boot NIC discovery and the DSA ABI run from the source repository with ./validate-packages.sh.

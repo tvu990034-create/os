@@ -1,109 +1,28 @@
 # router-core
 
-Core components for Router OS.
+Core RouterOS package for first-boot defaults, hardware inventory and startup diagnostics.
 
-## Purpose
+## Network defaults
 
-This package provides core system functionality for Router OS including:
-- Default network configuration (IPv4/IPv6)
-- Default firewall configuration
-- Default DHCP/DNS configuration
-- System configuration (hostname, timezone, logging)
-- Hardware detection utility
-- Interface hotplug scripts
-- UCI defaults for initial setup
+- LAN bridge: br-lan, static 192.168.1.1/24.
+- The first physical wired interface discovered at first boot is assigned to LAN.
+- The second physical wired interface, when present, is configured as a DHCP WAN client (with DHCPv6).
+- Additional detected wired NICs are placed on the LAN bridge.
+- A one-NIC device is configured as LAN-only. A separate WAN NIC must be added for routed WAN/LAN separation.
 
-## Files
+The network defaults are applied once by OpenWrt's UCI defaults mechanism. A non-stock user-defined network layout is not rewritten.
 
-### Configuration Files
-- `files/config/network` - Default network configuration (LAN: 192.168.1.1/24, WAN: DHCP)
-- `files/config/firewall` - Default firewall rules (LAN<->WAN forwarding, ICMP allow)
-- `files/config/dhcp` - DHCP server configuration for LAN
-- `files/config/system` - System configuration (hostname, timezone, NTP)
+## Firewall
 
-### Scripts
-- `files/libexec/router-hw-detect` - Hardware detection utility
-- `files/hotplug.d/iface/99_router-core` - Interface hotplug handler
-- `files/hotplug.d/net/99_router-core` - Network device hotplug handler
-- `files/uci-defaults/99_router-core` - UCI defaults for initial boot
+The default policy rejects unsolicited input and forwarding. LAN is trusted, WAN input is rejected, and LAN-to-WAN forwarding uses masquerading. IPv6 ICMP input types required for normal IPv6 operation are allowed from WAN.
 
-## Default Configuration
+## Diagnostics
 
-### Network
-- **LAN**: 192.168.1.1/24, DHCP enabled (100-250)
-- **WAN**: DHCP (IPv4), DHCPv6 (IPv6)
-- **Bridge**: br-lan with eth1 (default, modify for your hardware)
+- /usr/libexec/router-core/router-hw-detect prints network, PCI (when lspci is installed), CPU, memory and block-device inventory.
+- /etc/init.d/router-core writes a startup inventory to /tmp/router-core/hardware.txt.
 
-### Firewall
-- **LAN**: Accept all
-- **WAN**: Reject input/forward, accept output, masquerade enabled
-- **Forwarding**: LAN to WAN allowed
-- **ICMP**: Ping allowed from WAN
+The scripts are read-only with respect to network configuration.
 
-### DHCP
-- **LAN**: DHCP server, DNS relay, RA server
-- **WAN**: DHCP client (disabled)
+## First boot security
 
-### System
-- **Hostname**: RouterOS
-- **Timezone**: UTC
-- **NTP**: Enabled (openwrt.pool.ntp.org)
-- **Logging**: Enabled (64KB circular buffer)
-
-## Hardware Detection
-
-Run hardware detection:
-```bash
-/usr/libexec/router-core/router-hw-detect
-```
-
-This will display:
-- Network interfaces
-- PCI devices (if lspci available)
-- CPU information
-- Memory information
-
-## Customization
-
-### Modify Network Configuration
-
-Edit `/etc/config/network` to match your hardware:
-```bash
-# Change WAN device (e.g., from eth0 to enp1s0)
-uci set network.wan.device='enp1s0'
-uci commit network
-/etc/init.d/network restart
-```
-
-### Modify LAN IP
-```bash
-uci set network.lan.ipaddr='192.168.0.1'
-uci commit network
-/etc/init.d/network restart
-```
-
-### Add LAN Bridge Ports
-```bash
-uci add_list device.br-lan.ports='eth2'
-uci add_list device.br-lan.ports='eth3'
-uci commit network
-/etc/init.d/network restart
-```
-
-## Current Status
-
-Phase 2: Implemented basic system initialization and default configuration.
-
-## Dependencies
-
-- procd (init system)
-- uci (configuration system)
-- ubus (system bus)
-- netifd (network interface daemon)
-- firewall4 (firewall management)
-- dnsmasq (DNS/DHCP server)
-- odhcpd (IPv6 DHCP/RA)
-
-## Future Implementation
-
-See ARCHITECTURE.md for future phases.
+router-core does not force SSH password options or rewrite uhttpd listen addresses. Set a root password on the local console before enabling remote administration.

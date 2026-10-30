@@ -1,16 +1,13 @@
 #
-# Copyright (C) 2026 Router OS Project
-#
-# This is free software, licensed under the GNU General Public License v2.
-# See /LICENSE for more information.
+# RouterOS core package.
+# SPDX-License-Identifier: GPL-2.0-only
 #
 
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=router-core
-PKG_RELEASE:=1
-
-PKG_LICENSE:=GPL-2.0
+PKG_RELEASE:=3
+PKG_LICENSE:=GPL-2.0-only
 PKG_MAINTAINER:=Router OS Project
 
 include $(INCLUDE_DIR)/package.mk
@@ -18,33 +15,41 @@ include $(INCLUDE_DIR)/package.mk
 define Package/router-core
   SECTION:=base
   CATEGORY:=Base system
-  TITLE:=Router OS Core Components
-  DEPENDS:=+procd +uci +ubus +netifd +firewall4 +kmod-nft-core +dnsmasq +odhcpd
+  TITLE:=RouterOS Core Components
+  DEPENDS:=+procd +uci +ubus +netifd +firewall4 +dnsmasq +odhcpd
   DEFAULT:=y if TARGET_x86||TARGET_armsr
 endef
 
 define Package/router-core/description
-  Core components for Router OS including system initialization,
-  hardware detection, and configuration management.
+ RouterOS first-boot network defaults, hardware inventory and startup diagnostics.
+endef
+
+define Package/router-core/conffiles
+/etc/config/network
+/etc/config/firewall
+/etc/config/dhcp
+/etc/config/system
 endef
 
 define Build/Compile
-	# No compilation needed for this package
 endef
 
 define Package/router-core/install
+	$(INSTALL_DIR) $(1)/etc/config
 	$(INSTALL_DIR) $(1)/etc/uci-defaults
 	$(INSTALL_DIR) $(1)/etc/init.d
-	$(INSTALL_DIR) $(1)/usr/libexec/router-core
-	$(INSTALL_DIR) $(1)/etc/config
 	$(INSTALL_DIR) $(1)/etc/hotplug.d/iface
 	$(INSTALL_DIR) $(1)/etc/hotplug.d/net
-	$(INSTALL_CONF) ./files/uci-defaults/* $(1)/etc/uci-defaults/ 2>/dev/null || true
-	$(INSTALL_BIN) ./files/init.d/* $(1)/etc/init.d/ 2>/dev/null || true
-	$(INSTALL_BIN) ./files/libexec/* $(1)/usr/libexec/router-core/ 2>/dev/null || true
-	$(INSTALL_CONF) ./files/config/* $(1)/etc/config/ 2>/dev/null || true
-	$(INSTALL_BIN) ./files/hotplug.d/iface/* $(1)/etc/hotplug.d/iface/ 2>/dev/null || true
-	$(INSTALL_BIN) ./files/hotplug.d/net/* $(1)/etc/hotplug.d/net/ 2>/dev/null || true
+	$(INSTALL_DIR) $(1)/usr/libexec/router-core
+	$(INSTALL_CONF) ./files/config/network $(1)/etc/config/network
+	$(INSTALL_CONF) ./files/config/firewall $(1)/etc/config/firewall
+	$(INSTALL_CONF) ./files/config/dhcp $(1)/etc/config/dhcp
+	$(INSTALL_CONF) ./files/config/system $(1)/etc/config/system
+	$(INSTALL_BIN) ./files/uci-defaults/99_router-core $(1)/etc/uci-defaults/99_router-core
+	$(INSTALL_BIN) ./files/init.d/router-core $(1)/etc/init.d/router-core
+	$(INSTALL_BIN) ./files/libexec/router-hw-detect $(1)/usr/libexec/router-core/router-hw-detect
+	$(INSTALL_BIN) ./files/hotplug.d/iface/99_router-core $(1)/etc/hotplug.d/iface/99_router-core
+	$(INSTALL_BIN) ./files/hotplug.d/net/99_router-core $(1)/etc/hotplug.d/net/99_router-core
 endef
 
 $(eval $(call BuildPackage,router-core))

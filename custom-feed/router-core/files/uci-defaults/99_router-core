@@ -1,40 +1,87 @@
 #!/bin/sh
-# Router OS UCI Defaults
-# This script runs on first boot to configure Router OS defaults
+# Configure safe, hardware-aware defaults once on first boot.
+# Existing custom network configurations are left untouched.
 
-# Ensure SSH is enabled and listening on LAN
-if uci get dropbear.@dropbear[0] >/dev/null 2>&1; then
-	uci set dropbear.@dropbear[0].Interface='lan'
-	uci set dropbear.@dropbear[0].PasswordAuth='on'
-	uci set dropbear.@dropbear[0].RootPasswordAuth='on'
-	uci commit dropbear
-else
-	logger -t router-core "Warning: dropbear configuration not found"
+log() {
+	logger -t router-core "$1"
+}
+
+if ! command -v uci >/dev/null 2>&1; then
+	log "uci is unavailable; skipping first-boot defaults"
+	exit 0
 fi
 
-# Configure HTTP server for LuCI
-if uci get uhttpd.main >/dev/null 2>&1; then
-	uci set uhttpd.main.listen_http='80'
-	uci set uhttpd.main.listen_https='443'
-	uci set uhttpd.main.home='/www'
-	uci set uhttpd.main.rfc1918_filter='1'
-	uci commit uhttpd
-else
-	logger -t router-core "Warning: uhttpd configuration not found"
+SYS_CLASS_NET=${ROUTER_CORE_SYS_CLASS_NET:-/sys/class/net}
+
+# Generate a per-device ULA prefix instead of shipping one shared prefix.
+if ! uci -q get network.globals.ula_prefix >/dev/null 2>&1; then
+	ula_id="$(cat /proc/sys/kernel/random/uuid 2>/dev/null | tr -d '-' | cut -c1-10)"
+	case "$ula_id" in
+		??????????)
+			ula_prefix="fd$(printf '%.2s' "$ula_id"):$(printf '%.4s' "${ula_id#??}"):$(printf '%.4s' "${ula_id#????}")::/48"
+			uci set network.globals.ula_prefix="$ula_prefix"
+			;;
+		*)
+			log "could not generate a unique IPv6 ULA prefix; leaving it unset"
+			;;
+	esac
 fi
 
-# Enable system logging
-if uci get system.@system[0] >/dev/null 2>&1; then
-	uci set system.@system[0].log_size='64'
-	uci set system.@system[0].log_type='circular'
-	uci set system.@system[0].conloglevel='7'
-	uci set system.@system[0].cronloglevel='5'
-	uci commit system
-else
-	logger -t router-core "Warning: system configuration not found"
+# Only auto-wire the stock RouterOS bridge. Never rewrite a user-defined
+# network layout or replace an existing WAN configuration.
+BRIDGE_NAME="$(uci -q get network.lan_bridge.name 2>/dev/null || true)"
+if [ "$BRIDGE_NAME" = "br-lan" ]; then
+	EXISTING_PORTS="$(uci -q get network.lan_bridge.ports 2>/dev/null || true)"
+	if [ -z "$EXISTING_PORTS" ]; then
+		set --
+		for iface_path in "$SYS_CLASS_NET"/*; do
+			[ -e "$iface_path" ] || continue
+			iface=${iface_path##*/}
+			case "$iface" in
+				lo|br-*|docker*|veth*|virbr*|tun*|tap*|sit*|ip6tnl*|wlan*|phy*) continue ;;
+			esac
+			[ -e "$iface_path/device" ] || continue
+			[ -d "$iface_path/wireless" ] && continue
+			set -- "$@" "$iface"
+		done
+
+		if [ "$#" -gt 0 ]; then
+			LAN_IFACE="$1"
+			shift
+			uci add_list network.lan_bridge.ports="$LAN_IFACE"
+			log "assigned first detected wired interface $LAN_IFACE to LAN"
+
+			if [ "$#" -gt 0 ]; then
+				WAN_IFACE="$1"
+				shift
+				if uci -q get network.wan.proto >/dev/null 2>&1; then
+					log "existing WAN configuration detected; preserving it"
+				else
+					uci set network.wan='interface'
+					uci set network.wan.device="$WAN_IFACE"
+					uci set network.wan.proto='dhcp'
+					uci set network.wan6='interface'
+					uci set network.wan6.device="$WAN_IFACE"
+					uci set network.wan6.proto='dhcpv6'
+					log "assigned second detected wired interface $WAN_IFACE to WAN"
+				fi
+			fi
+
+			for iface in "$@"; do
+				uci add_list network.lan_bridge.ports="$iface"
+				log "assigned additional wired interface $iface to LAN"
+			done
+			uci commit network
+		else
+			log "no physical wired interfaces found; LAN bridge has no member ports"
+		fi
+	fi
 fi
 
-# Log that defaults were applied
-logger -t router-core "Router OS UCI defaults applied"
+# Enable one-shot boot diagnostics through the normal rc.common mechanism.
+if [ -x /etc/init.d/router-core ]; then
+	/etc/init.d/router-core enable
+fi
 
+log "RouterOS first-boot defaults completed"
 exit 0

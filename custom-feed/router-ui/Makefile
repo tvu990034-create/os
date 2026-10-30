@@ -1,16 +1,13 @@
 #
-# Copyright (C) 2026 Router OS Project
-#
-# This is free software, licensed under the GNU General Public License v2.
-# See /LICENSE for more information.
+# RouterOS LuCI integration placeholder.
+# SPDX-License-Identifier: GPL-2.0-only
 #
 
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=router-ui
-PKG_RELEASE:=1
-
-PKG_LICENSE:=GPL-2.0
+PKG_RELEASE:=2
+PKG_LICENSE:=GPL-2.0-only
 PKG_MAINTAINER:=Router OS Project
 
 include $(INCLUDE_DIR)/package.mk
@@ -19,18 +16,17 @@ define Package/router-ui
   SECTION:=luci
   CATEGORY:=LuCI
   SUBMENU:=2. Modules
-  TITLE:=Router OS LuCI Customizations
-  DEPENDS:=+luci-base +luci-mod-admin-full
+  TITLE:=RouterOS LuCI Integration Placeholder
+  DEPENDS:=+luci-base
   DEFAULT:=n
 endef
 
 define Package/router-ui/description
-  Custom LuCI modules for Router OS including dashboard,
-  custom branding, and management interface extensions.
+ Reserved package for future RouterOS LuCI views and controls. No custom UI
+ files are included yet; the package intentionally remains disabled by default.
 endef
 
 define Build/Compile
-	# No compilation needed for this package skeleton
 endef
 
 define Package/router-ui/install

@@ -1,74 +1,29 @@
-# Build Environment Requirements
+# Build environment
 
-## Current Environment Issue
+RouterOS currently targets OpenWrt x86/64 generic first.
 
-The OpenWrt build system requires a Unix-like environment with specific tools. The current Windows environment does not have the required build tools (make, gcc, etc.) installed.
+## Pinned upstream
 
-## Requirements
+The default build pins OpenWrt v25.12.6. This keeps the base system and package feeds aligned with a known stable release.
 
-From OpenWrt README.md:
+## Supported developer setup
 
-> To build your own firmware you need a GNU/Linux, BSD or macOS system (case
-> sensitive filesystem required). Cygwin is unsupported because of the lack of a
-> case sensitive file system.
+Use Ubuntu 24.04, native Linux, or Ubuntu under WSL2. Keep the checkout and build directory on the Linux filesystem (for example, under ~/src), not on a Windows-mounted /mnt/c path.
 
-### Required Tools
+Install host dependencies:
 
-```
-binutils bzip2 diff find flex gawk gcc-6+ getopt grep install libc-dev libz-dev
-make4.1+ perl python3.8+ rsync subversion unzip which
-```
+    ./scripts/install-build-deps-ubuntu.sh
 
-## Recommended Solutions
+Prepare the upstream checkout and custom feed:
 
-### Option 1: Windows Subsystem for Linux (WSL)
-- Install WSL2 on Windows
-- Install Ubuntu or another Linux distribution
-- Install required build tools
-- Build from within WSL environment
+    ./setup.sh
 
-### Option 2: Linux Virtual Machine
-- Use VirtualBox, VMware, or similar
-- Install Linux distribution (Ubuntu, Debian, etc.)
-- Install required build tools
-- Build from within VM
+## Build
 
-### Option 3: Native Linux System
-- Use a dedicated Linux machine
-- Install required build tools
-- Build directly
+    JOBS=2 ./scripts/build-x86_64.sh
 
-## What Was Tested in Phase 1
+Set JOBS=1 or JOBS=2 on machines with limited memory. Build output is written under openwrt/bin/targets/x86/64/.
 
-Despite the build environment limitation, the following was validated:
+## Validation boundary
 
-1. **Directory Structure**: Created successfully
-2. **Feed Configuration**: Syntax is correct (follows OpenWrt format)
-3. **Package Makefiles**: Follow OpenWrt package conventions
-4. **Feed Paths**: Relative paths are correct for src-link feeds
-
-## What Cannot Be Tested Without Build Environment
-
-- Actual feed update and install
-- Package compilation
-- Image generation
-- Runtime behavior
-
-## Next Steps
-
-Before proceeding to Phase 2, ensure a proper build environment is available:
-
-1. Set up WSL2 or Linux VM
-2. Install required build tools
-3. Verify OpenWrt can build a minimal image
-4. Then proceed with Phase 2 implementation
-
-## Workaround for Development
-
-For development and code review without a build environment:
-- Review package Makefiles for syntax errors
-- Validate directory structure
-- Check feed configuration syntax
-- Use OpenWrt documentation as reference
-
-The code created in Phase 1 follows OpenWrt conventions and should work correctly once a proper build environment is available.
+Repository validation and the SDK package-build workflow validate the custom source and package integration. A complete firmware image still needs to be booted and exercised on QEMU or supported hardware before calling the OS runtime validated.

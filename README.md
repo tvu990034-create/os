@@ -1,94 +1,62 @@
-# Router OS
+# RouterOS
 
-A custom router operating system based on OpenWrt + Linux.
+A custom router operating system built on OpenWrt and the Linux kernel. The first hardware target is generic x86-64, including the planned Dell OptiPlex 3050 platform.
 
-**Repository**: https://github.com/tvu990034-create/os
+## Current baseline
 
-## Project Structure
+- OpenWrt source is pinned to **v25.12.6** by default.
+- RouterOS packages are maintained in `custom-feed/` and remain separate from upstream OpenWrt source.
+- The x86-64 build profile includes `router-core`, `router-net`, `router-dsa-sdk` and `router-dsa-runtime`.
+- The DSA SDK defines a versioned C plugin ABI. The runtime can load a trusted plugin and execute it against synthetic packet metadata for algorithm development and offline testing.
+- **The DSA runtime is not a live packet dataplane.** It does not yet intercept or steer forwarded traffic.
 
-```
-router-os-source/
-├── linux/              # Linux kernel reference (external git repo)
-├── openwrt/            # OpenWrt build system (external git repo)
-├── luci/               # LuCI web interface (external git repo)
-├── packages/           # OpenWrt packages (external git repo)
-├── routing/            # OpenWrt routing packages (external git repo)
-├── iproute2/           # Network utilities (external git repo)
-├── dpdk/               # DPDK reference (external git repo)
-├── xdp-tutorial/       # XDP reference (external git repo)
-├── buildroot/          # Buildroot reference (external git repo)
-├── u-boot/             # U-Boot reference (external git repo)
-├── coreboot/           # Coreboot reference (external git repo)
-├── custom/             # Custom Router OS code (tracked in this repo)
-│   ├── build/          # Build configuration
-│   ├── configs/        # Configuration templates
-│   ├── kernel/         # Kernel modifications
-│   ├── docs/           # Documentation
-│   └── feeds.conf.local # Feed configuration
-├── custom-feed/        # Custom Router OS packages (tracked in this repo)
-└── *.md                # Documentation (tracked in this repo)
-```
+Older PHASE and FINAL reports are historical snapshots. Use FOUNDATION_STATUS.md for the current acceptance checklist and verification status.
 
-## Custom Components
+## Quick start (Ubuntu / WSL2)
 
-### custom/
-Custom build configuration and documentation for Router OS.
-- This directory should be copied to `openwrt/custom/` before building
-- Feed configuration is generated during setup (see below)
+Run the following from a Linux filesystem path (for example, ~/src), not from /mnt/c:
 
-### custom-feed/
-Custom Router OS packages:
-- `router-core` - Core system components
-- `router-net` - Networking extensions
-- `router-ui` - LuCI customizations
-- `router-tests` - Test suite
+    git clone https://github.com/tvu990034-create/os.git
+    cd os
+    ./scripts/install-build-deps-ubuntu.sh
+    ./setup.sh
+    JOBS=2 ./scripts/build-x86_64.sh
 
-## Setup
+setup.sh clones OpenWrt v25.12.6 into the ignored openwrt/ directory when it is absent. It creates OpenWrt's active feeds.conf by including the release's pinned feeds.conf.default and registering this repository's custom feed.
 
-1. Clone external repositories:
-```bash
-git clone https://github.com/openwrt/openwrt.git openwrt
-git clone https://github.com/torvalds/linux.git
-git clone https://github.com/openwrt/luci.git
-git clone https://github.com/openwrt/packages.git
-git clone https://github.com/openwrt/routing.git
-git clone https://github.com/iproute2/iproute2.git
-git clone https://github.com/DPDK/dpdk.git
-git clone https://github.com/xdp-project/xdp-tutorial.git
-git clone https://github.com/buildroot/buildroot.git
-git clone https://github.com/u-boot/u-boot.git
-git clone https://github.com/coreboot/coreboot.git
-```
+## Repository layout
 
-2. Run setup script:
-```bash
-./setup.sh
-```
+- custom-feed/router-core: first-boot network configuration, hardware inventory and startup diagnostics.
+- custom-feed/router-net: optional, read-only interface observer and DSA runtime dependency.
+- custom-feed/router-dsa-sdk: versioned C ABI header installed at /usr/include/router-os/dsa.h.
+- custom-feed/router-dsa-runtime: router-dsa-run plugin loader/test runner.
+- custom-feed/router-tests: optional on-device smoke tests.
+- custom-feed/router-ui: reserved LuCI integration package; no custom UI is implemented yet.
+- custom/configs: generic, x86 and ARM network templates.
+- config/x86_64.config: reference build configuration.
+- scripts/: build and validation scripts.
+- tests/dsa-sdk/: host-side plugin ABI smoke test.
 
-This script copies custom configuration to openwrt/ and generates feeds.conf.local.
+## Network defaults
 
-3. Set up build environment (Linux/WSL2 required):
-```bash
-cd openwrt
-./scripts/feeds update custom-feed
-./scripts/feeds install router-core
-make menuconfig
-make
-```
+On first boot, router-core discovers physical wired interfaces. The first detected wired NIC is assigned to LAN; when a second is present, it becomes WAN; additional detected wired NICs join LAN. A single-NIC system receives LAN only and does not get a fictitious WAN interface. The default LAN address is 192.168.1.1/24.
 
-## Documentation
+Connect a management computer to the LAN-side port and set a root password on first console login before enabling remote administration. Do not connect an unconfigured WAN uplink to the LAN port.
 
-- [ARCHITECTURE.md](ARCHITECTURE.md) - Overall architecture design
-- [ARCHITECTURE_CORRECTIONS.md](ARCHITECTURE_CORRECTIONS.md) - Technical corrections
-- [PHASE1_COMPLETION_REPORT.md](PHASE1_COMPLETION_REPORT.md) - Phase 1 report
-- [PHASE1_FILE_MANIFEST.md](PHASE1_FILE_MANIFEST.md) - File inventory
-- [PHASE1_SUMMARY.md](PHASE1_SUMMARY.md) - Phase 1 summary
+## Validation
 
-## Status
+Run source validation on a Linux development host:
 
-**Phase 1**: ✅ Complete - Architecture & Build Setup
-**Phase 2**: ⏳ Pending - Requires build environment setup
+    ./validate-packages.sh
 
-## License
+For on-device tests, build with router-tests selected and run:
 
-GPL-2.0 (compatible with OpenWrt)
+    /usr/libexec/router-tests/test-config-syntax.sh
+    /usr/libexec/router-tests/test-hardware-detect.sh
+    /usr/libexec/router-tests/test-network-validation.sh
+
+GitHub Actions also validates shell/UCI syntax, exercises the DSA plugin ABI and compiles the custom packages against the pinned OpenWrt x86-64 SDK.
+
+## DSA development boundary
+
+Algorithm authors can now implement a shared object against router-os/dsa.h, choose a classify/route/schedule/observe stage and execute the plugin offline using router-dsa-run. Only trusted shared objects should be loaded. A future dataplane adapter is still required before algorithm outputs can affect live forwarding or performance benchmarks.

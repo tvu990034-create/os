@@ -1,60 +1,48 @@
-#!/bin/bash
-# Router OS Setup Script
-# This script prepares the OpenWrt build system for Router OS development
+#!/bin/sh
+# Prepare a pinned OpenWrt source tree and register the RouterOS local feed.
 
-set -e
+set -eu
 
-echo "Router OS Setup Script"
-echo "======================"
+ROOT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+OPENWRT_DIR=${OPENWRT_DIR:-"$ROOT_DIR/openwrt"}
+OPENWRT_REF=${OPENWRT_REF:-v25.12.6}
+CUSTOM_FEED_DIR="$ROOT_DIR/custom-feed"
 
-# Check if openwrt directory exists
-if [ ! -d "openwrt" ]; then
-    echo "Error: openwrt directory not found."
-    echo "Please clone OpenWrt first:"
-    echo "  git clone https://github.com/openwrt/openwrt.git"
-    exit 1
+fail() {
+	printf 'ERROR: %s\n' "$*" >&2
+	exit 1
+}
+
+command -v git >/dev/null 2>&1 || fail "git is required"
+[ -d "$CUSTOM_FEED_DIR" ] || fail "custom-feed directory is missing"
+
+if [ ! -d "$OPENWRT_DIR" ]; then
+	printf 'Cloning OpenWrt %s into %s\n' "$OPENWRT_REF" "$OPENWRT_DIR"
+	git clone --depth 1 --branch "$OPENWRT_REF" https://github.com/openwrt/openwrt.git "$OPENWRT_DIR"
 fi
 
-# Check if custom-feed directory exists
-if [ ! -d "custom-feed" ]; then
-    echo "Error: custom-feed directory not found."
-    exit 1
+[ -d "$OPENWRT_DIR/.git" ] || fail "$OPENWRT_DIR exists but is not an OpenWrt Git checkout"
+actual_commit=$(git -C "$OPENWRT_DIR" rev-parse HEAD)
+expected_commit=$(git -C "$OPENWRT_DIR" rev-parse "$OPENWRT_REF^{commit}" 2>/dev/null || true)
+[ -n "$expected_commit" ] || fail "OpenWrt ref $OPENWRT_REF is not available locally; fetch it or remove the checkout and rerun setup"
+[ "$actual_commit" = "$expected_commit" ] || fail "OpenWrt checkout is not at $OPENWRT_REF (HEAD=$actual_commit). No files were changed; check out the pinned ref and rerun."
+
+FEEDS_CONF="$OPENWRT_DIR/feeds.conf"
+CUSTOM_FEED_LINE="src-link custom-feed $CUSTOM_FEED_DIR"
+
+if [ -f "$FEEDS_CONF" ]; then
+	if ! grep -Fqx "$CUSTOM_FEED_LINE" "$FEEDS_CONF"; then
+		fail "existing feeds.conf was preserved. Add this exact line to it: $CUSTOM_FEED_LINE"
+	fi
+else
+	{
+		printf '%s\n' 'include feeds.conf.default'
+		printf '%s\n' "$CUSTOM_FEED_LINE"
+	} > "$FEEDS_CONF"
 fi
 
-# Copy custom directory to openwrt
-echo "Copying custom configuration to openwrt/custom/..."
-mkdir -p openwrt/custom
-cp -r custom/* openwrt/custom/
-
-# Generate feeds.conf.local
-echo "Generating feeds.conf.local..."
-cat > openwrt/feeds.conf.local << 'EOF'
-# Router OS Custom Feed Configuration
-# This file configures local feeds for Router OS development
-
-# Custom Router OS feed (local package feed, not a git repo)
-src-link custom-feed ../custom-feed
-
-# Local OpenWrt package feeds (using sibling git repositories)
-# These are local clones of the official OpenWrt feeds
-src-git packages ../packages
-src-git luci ../luci
-src-git routing ../routing
-
-# Note: These local feeds use relative paths from the openwrt/ directory
-# The standard feeds.conf.default uses remote git repositories
-# This local configuration is for development with existing cloned repositories
-# src-link is used for custom-feed since it's not a git repository
-# src-git is used for packages/luci/routing since they are git repositories
-EOF
-
-echo "Setup complete!"
-echo ""
-echo "Next steps:"
-echo "  cd openwrt"
-echo "  ./scripts/feeds update custom-feed"
-echo "  ./scripts/feeds install router-core"
-echo "  ./scripts/feeds install router-net"
-echo "  ./scripts/feeds install router-tests"
-echo "  make menuconfig"
-echo "  make"
+printf '\nRouterOS build tree is ready.\n'
+printf '  OpenWrt ref: %s\n' "$OPENWRT_REF"
+printf '  OpenWrt commit: %s\n' "$actual_commit"
+printf '  Custom feed: %s\n' "$CUSTOM_FEED_DIR"
+printf '\nNext: cd "%s" && ./scripts/feeds update -a\n' "$OPENWRT_DIR"

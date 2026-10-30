@@ -1,284 +1,86 @@
-# Build Instructions for Router OS
+# RouterOS Build Instructions
 
-## Prerequisites
+## Target and upstream version
 
-### Required Tools
+The reference target is OpenWrt x86/64 generic, pinned to OpenWrt v25.12.6. The same package feed is structured to remain architecture-neutral, but x86/64 is the first build target.
 
-The OpenWrt build system requires a Linux environment with the following tools:
+## Host environment
 
-```
-binutils bzip2 diff find flex gawk gcc-6+ getopt grep install libc-dev libz-dev
-make4.1+ perl python3.8+ rsync subversion unzip which
-```
+Use Ubuntu 24.04, native Linux, or Ubuntu under WSL2. Keep the source tree inside the Linux filesystem (for example, ~/src/os). OpenWrt requires a case-sensitive filesystem and a full Linux build toolchain.
 
-### Supported Environments
+Install the required host packages:
 
-- Linux (native)
-- WSL2 (Windows Subsystem for Linux 2)
-- macOS (with case-sensitive filesystem)
-- BSD (with case-sensitive filesystem)
+    ./scripts/install-build-deps-ubuntu.sh
 
-**Note**: Cygwin is NOT supported due to lack of case-sensitive filesystem.
+## Prepare source and feeds
 
-## Repository Setup
+    ./setup.sh
 
-### 1. Clone the Repository
+The setup script clones the pinned OpenWrt tag when openwrt/ is absent. If an existing OpenWrt checkout is at a different revision, setup stops without resetting it. Check out v25.12.6 manually and rerun setup.sh.
 
-```bash
-git clone https://github.com/tvu990034-create/os.git
-cd os
-```
+The script creates openwrt/feeds.conf with:
 
-### 2. Clone Required External Repositories
+    include feeds.conf.default
+    src-link custom-feed /absolute/path/to/os/custom-feed
 
-The repository structure expects these external repositories as siblings:
+This is intentional: OpenWrt's feeds utility reads feeds.conf (or feeds.conf.default when feeds.conf is absent); feeds.conf.local is not the active feeds configuration.
 
-```bash
-# From the os directory
-git clone https://github.com/openwrt/openwrt.git
-git clone https://github.com/torvalds/linux.git
-git clone https://github.com/openwrt/luci.git
-git clone https://github.com/openwrt/packages.git
-git clone https://github.com/openwrt/routing.git
-git clone https://github.com/iproute2/iproute2.git
-git clone https://github.com/DPDK/dpdk.git
-git clone https://github.com/xdp-project/xdp-tutorial.git
-git clone https://github.com/buildroot/buildroot.git
-git clone https://github.com/u-boot/u-boot.git
-git clone https://github.com/coreboot/coreboot.git
-```
+## Build x86-64 firmware
 
-### 3. Run Setup Script
+    JOBS=2 ./scripts/build-x86_64.sh
 
-```bash
-./setup.sh
-```
+The build script updates the pinned release feeds, installs available packages, applies config/x86_64.config when no local .config exists, runs make defconfig, downloads sources and builds the image.
 
-This will:
-- Copy custom configuration to `openwrt/custom/`
-- Generate `openwrt/feeds.conf.local`
+You can change JOBS to suit available memory. If a .config already exists, the script preserves it; edit it with make menuconfig rather than deleting it blindly.
 
-## Build Process
+Expected output directory:
 
-### 1. Navigate to OpenWrt Directory
+    openwrt/bin/targets/x86/64/
 
-```bash
-cd openwrt
-```
+The release's standard generic x86-64 image is an ext4 or squashfs combined image. Use the exact filename produced by the selected configuration.
 
-### 2. Update Feeds
+## Include the on-device test package
 
-```bash
-./scripts/feeds update custom-feed
-./scripts/feeds update packages
-./scripts/feeds update luci
-./scripts/feeds update routing
-```
+router-tests is optional. From openwrt/ after feeds have been installed:
 
-### 3. Install Packages
+    ./scripts/feeds install router-tests
+    make menuconfig
 
-```bash
-./scripts/feeds install router-core
-./scripts/feeds install router-net
-./scripts/feeds install router-tests
-./scripts/feeds install -a
-```
+Select Utilities -> router-tests, save the configuration, then run make -j2.
 
-### 4. Configure Build
+## Boot in QEMU
 
-```bash
-make menuconfig
-```
+Install qemu-system-x86 and use the ext4 combined image produced by the build. For example:
 
-**Required Configuration**:
+    gunzip -k openwrt/bin/targets/x86/64/openwrt-25.12.6-x86-64-generic-ext4-combined.img.gz
+    qemu-system-x86_64 -m 1024 -smp 2 -nographic \
+      -drive file=openwrt/bin/targets/x86/64/openwrt-25.12.6-x86-64-generic-ext4-combined.img,format=raw \
+      -netdev user,id=net0 -device e1000,netdev=net0
 
-1. **Target System**:
-   - For x86: Target System → x86
-   - For ARM: Target System → ARM (armsr)
+Use the serial console for first boot. Set a root password before enabling remote administration. A one-NIC QEMU instance is configured as LAN only by design.
 
-2. **Target Profile**:
-   - For x86: Generic x86/VMware/Containers
-   - For ARM: Generic ARMv8
-
-3. **Base System**:
-   - Ensure `router-core` is selected (should be default for x86/armsr)
-
-4. **Network**:
-   - Ensure firewall4 is selected
-   - Ensure dnsmasq is selected
-   - Ensure odhcpd is selected
-
-5. **Utilities**:
-   - Select router-tests if you want test utilities
-
-6. **Save Configuration**: Save and exit
-
-### 5. Build Image
-
-```bash
-make -j$(nproc)
-```
-
-This will:
-- Download toolchain
-- Build cross-compiler
-- Build kernel
-- Build packages
-- Generate firmware image
+## DSA plugin development
 
-The build will take time (30 minutes to several hours depending on your system).
+The router-dsa-sdk package installs /usr/include/router-os/dsa.h. A plugin exports router_dsa_get_algorithm_v1() and implements the lifecycle callbacks in the ABI descriptor.
 
-## Build Output
+The router-dsa-runtime package supplies:
 
-After successful build, images will be in:
+    router-dsa-run /path/to/plugin.so [ingress-ifindex] [packet-length] [ip-version] [ip-protocol]
 
-```
-openwrt/bin/targets/<target>/<subtarget>/
-```
+The runner invokes the plugin once with synthetic metadata and prints its decision. It is intended for deterministic algorithm development and smoke testing. It is not a live packet capture, forwarding, routing or scheduling dataplane.
 
-For x86:
-```
-openwrt/bin/targets/x86/64/
-```
+Host-side ABI smoke test:
 
-Common image files:
-- `openwrt-x86-64-generic-ext4-combined.img.gz` - Combined image
-- `openwrt-x86-64-generic-kernel.bin` - Kernel
-- `openwrt-x86-64-generic-rootfs.tar.gz` - Root filesystem
+    ./tests/dsa-sdk/test-plugin.sh
 
-## Testing the Image
+## On-device smoke tests
 
-### In QEMU (x86)
+When router-tests is installed:
 
-```bash
-# Extract image
-gunzip openwrt-x86-64-generic-ext4-combined.img.gz
+    /usr/libexec/router-tests/test-config-syntax.sh
+    /usr/libexec/router-tests/test-hardware-detect.sh
+    /usr/libexec/router-tests/test-network-validation.sh
 
-# Run in QEMU
-qemu-system-x86_64 \
-  -m 512M \
-  -drive file=openwrt-x86-64-generic-ext4-combined.img,format=raw \
-  -net nic,model=e1000 \
-  -net user,hostfwd=tcp::2222-:22 \
-  -nographic
-```
+## Validation boundaries
 
-### In VirtualBox
-
-1. Create new VM
-2. Type: Linux, Other Linux (64-bit)
-3. Memory: 512MB
-4. Disk: Use existing disk, select the extracted .img file
-5. Start VM
-
-### In VMware
-
-1. Create new VM
-2. Select "Use an existing virtual disk"
-3. Browse to the extracted .img file
-4. Start VM
-
-## First Boot Configuration
-
-On first boot:
-
-1. The system will use default configuration
-2. Login via console (user: root, no password set initially)
-3. Run hardware detection:
-   ```bash
-   /usr/libexec/router-core/router-hw-detect
-   ```
-4. Check network interfaces:
-   ```bash
-   ip link show
-   ```
-5. Adjust network configuration if needed:
-   ```bash
-   uci set network.wan.device=<your-wan-device>
-   uci set network.lan.device.br-lan
-   uci add_list device.br-lan.ports=<your-lan-device>
-   uci commit network
-   /etc/init.d/network restart
-   ```
-6. Set root password:
-   ```bash
-   passwd
-   ```
-
-## Running Tests
-
-After boot, run the test suite:
-
-```bash
-/usr/libexec/router-tests/test-config-syntax.sh
-/usr/libexec/router-tests/test-hardware-detect.sh
-/usr/libexec/router-tests/test-network-validation.sh
-```
-
-## Troubleshooting
-
-### Build Fails
-
-**Missing tools**: Install required tools (see Prerequisites)
-
-**Space issues**: Ensure at least 10GB free space
-
-**Network issues**: Use a local mirror for downloads
-
-### Image Won't Boot
-
-**Check architecture**: Ensure target matches your hardware/VM
-
-**Check image format**: Ensure you're using the correct image for your hypervisor
-
-**Console access**: Use serial console if VGA console doesn't work
-
-### Network Not Working
-
-**Check device names**: Run `ip link show` to see actual device names
-
-**Check configuration**: Run `uci show network` to verify configuration
-
-**Check firewall**: Run `uci show firewall` to verify firewall rules
-
-**Check logs**: Run `logread` to see system logs
-
-## Cleaning Build
-
-To clean the build:
-
-```bash
-cd openwrt
-make clean
-```
-
-To clean everything including downloaded sources:
-
-```bash
-make dirclean
-```
-
-## Reproducible Builds
-
-For reproducible builds, use:
-
-```bash
-make IGNORE_ERRORS=0
-```
-
-Document your exact configuration by saving `.config`:
-
-```bash
-cp .config my-router-config
-```
-
-## Support
-
-For OpenWrt-specific issues:
-- OpenWrt Wiki: https://openwrt.org
-- OpenWrt Forum: https://forum.openwrt.org
-
-For Router OS-specific issues:
-- Check logs: `logread`
-- Check hardware detection: `/usr/libexec/router-core/router-hw-detect`
-- Check configuration: `uci show`
+A successful package SDK build proves that custom package definitions compile against the pinned OpenWrt toolchain. It does not prove that the full image boots, that physical NIC assignments match every chassis, or that throughput/latency targets are met. Those require image boot and hardware testing.

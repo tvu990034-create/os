@@ -1,44 +1,26 @@
 #!/bin/sh
-# Test Hardware Detection
-# Validates hardware detection script functionality
+# Smoke-test the read-only hardware inventory command.
 
-echo "=== Testing Hardware Detection ==="
+set -u
+DETECT=/usr/libexec/router-core/router-hw-detect
+OUTPUT=/tmp/router-os-hardware-test.txt
 
-if [ ! -x /usr/libexec/router-core/router-hw-detect ]; then
-	echo "✗ router-hw-detect not found or not executable"
+if [ ! -x "$DETECT" ]; then
+	echo "FAIL: $DETECT is missing or not executable"
 	exit 1
 fi
 
-echo "✓ router-hw-detect exists and is executable"
+if ! "$DETECT" > "$OUTPUT" 2>&1; then
+	echo "FAIL: hardware inventory returned a non-zero status"
+	cat "$OUTPUT"
+	exit 1
+fi
 
-# Run hardware detection
-if /usr/libexec/router-core/router-hw-detect >/tmp/hw-detect-test.log 2>&1; then
-	echo "✓ Hardware detection completed without errors"
-	
-	# Check if log file was created
-	if [ -f /tmp/hw-detect-test.log ]; then
-		echo "✓ Detection log created"
-		
-		# Check if it contains expected sections
-		if grep -q "Network Interfaces" /tmp/hw-detect-test.log; then
-			echo "✓ Network interfaces detected"
-		else
-			echo "⚠ Network interfaces section missing"
-		fi
-		
-		if grep -q "CPU Information" /tmp/hw-detect-test.log; then
-			echo "✓ CPU information detected"
-		else
-			echo "⚠ CPU information section missing"
-		fi
-	else
-		echo "✗ Detection log not created"
+for section in "Hardware Inventory" "Network Interfaces" "CPU Information" "Memory Information" "Storage Information"; do
+	if ! grep -Fq "$section" "$OUTPUT"; then
+		echo "FAIL: expected section not found: $section"
 		exit 1
 	fi
-else
-	echo "✗ Hardware detection failed"
-	exit 1
-fi
+done
 
-echo "=== Hardware Detection Test Complete ==="
-exit 0
+echo "PASS: hardware inventory completed and contains expected sections"

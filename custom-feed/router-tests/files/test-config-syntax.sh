@@ -1,63 +1,23 @@
 #!/bin/sh
-# Test Configuration Syntax
-# Validates UCI configuration files for syntax errors
+# Validate all RouterOS UCI configuration files using the target's UCI parser.
 
-TEST_FAILED=0
+set -u
+FAILED=0
 
-echo "=== Testing Configuration Syntax ==="
-
-# Test network config
-if [ -f /etc/config/network ]; then
-	if uci show network >/dev/null 2>&1; then
-		echo "✓ network config syntax valid"
-	else
-		echo "✗ network config syntax INVALID"
-		TEST_FAILED=1
+for package in network firewall dhcp system router-net; do
+	config_file="/etc/config/$package"
+	if [ ! -f "$config_file" ]; then
+		echo "FAIL: missing $config_file"
+		FAILED=1
+		continue
 	fi
-else
-	echo "⚠ network config not found (expected on running system)"
-fi
-
-# Test firewall config
-if [ -f /etc/config/firewall ]; then
-	if uci show firewall >/dev/null 2>&1; then
-		echo "✓ firewall config syntax valid"
+	if uci -q show "$package" >/dev/null 2>&1; then
+		echo "PASS: $package parses"
 	else
-		echo "✗ firewall config syntax INVALID"
-		TEST_FAILED=1
+		echo "FAIL: $package does not parse"
+		FAILED=1
 	fi
-else
-	echo "⚠ firewall config not found (expected on running system)"
-fi
+done
 
-# Test dhcp config
-if [ -f /etc/config/dhcp ]; then
-	if uci show dhcp >/dev/null 2>&1; then
-		echo "✓ dhcp config syntax valid"
-	else
-		echo "✗ dhcp config syntax INVALID"
-		TEST_FAILED=1
-	fi
-else
-	echo "⚠ dhcp config not found (expected on running system)"
-fi
-
-# Test system config
-if [ -f /etc/config/system ]; then
-	if uci show system >/dev/null 2>&1; then
-		echo "✓ system config syntax valid"
-	else
-		echo "✗ system config syntax INVALID"
-		TEST_FAILED=1
-	fi
-else
-	echo "⚠ system config not found (expected on running system)"
-fi
-
-if [ $TEST_FAILED -eq 0 ]; then
-	echo "=== All tested configs valid ==="
-	exit 0
-else
-	echo "=== Some configs invalid ==="
-	exit 1
-fi
+[ "$FAILED" -eq 0 ] || exit 1
+echo "All RouterOS UCI configuration files parse successfully."

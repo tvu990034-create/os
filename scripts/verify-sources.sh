@@ -186,18 +186,21 @@ parse_and_verify() {
     local current_type=""
     local current_required="false"
     local current_ignore=""
-    
+    local section_name=""
+
     while IFS= read -r line || [ -n "$line" ]; do
         if [[ "$line" =~ ^# ]] || [[ -z "$line" ]]; then
             continue
         fi
         
         if [[ "$line" =~ ^\[([^\]]+)\] ]]; then
+            # Save the section name before verify_repo can overwrite BASH_REMATCH.
+            section_name="${BASH_REMATCH[1]}"
             if [ -n "$current_repo" ]; then
                 verify_repo "$current_repo" "$current_url" "$current_commit" "$current_type" "$current_required" "$current_ignore"
             fi
             
-            current_repo="${BASH_REMATCH[1]}"
+            current_repo="$section_name"
             current_url=""
             current_commit=""
             current_type=""

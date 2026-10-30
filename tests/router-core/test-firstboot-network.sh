@@ -18,7 +18,11 @@ cat > "$TMP_DIR/bin/uci" <<'UCI'
 [ "$1" = "-q" ] && shift
 if [ "$1" = "get" ]; then
 	case "$2" in
-		network.globals.ula_prefix) echo "fd12:3456:789a::/48"; exit 0 ;;
+		network.globals.ula_prefix)
+			[ "${NO_ULA:-0}" != "1" ] || exit 1
+			echo "fd12:3456:789a::/48"
+			exit 0
+			;;
 		network.lan_bridge.name) echo "br-lan"; exit 0 ;;
 		network.lan_bridge.ports) exit 1 ;;
 		network.wan.proto)
@@ -34,7 +38,15 @@ cat > "$TMP_DIR/bin/logger" <<'LOGGER'
 #!/bin/sh
 exit 0
 LOGGER
-chmod +x "$TMP_DIR/bin/uci" "$TMP_DIR/bin/logger"
+cat > "$TMP_DIR/bin/cat" <<'CAT'
+#!/bin/sh
+if [ "$1" = "/proc/sys/kernel/random/uuid" ]; then
+	printf '%s\n' "00112233-4455-6677-8899-aabbccddeeff"
+else
+	exec /bin/cat "$@"
+fi
+CAT
+chmod +x "$TMP_DIR/bin/uci" "$TMP_DIR/bin/logger" "$TMP_DIR/bin/cat"
 
 UCI_LOG="$TMP_DIR/two.log" PATH="$TMP_DIR/bin:$PATH" \
 	ROUTER_CORE_SYS_CLASS_NET="$TMP_DIR/sys-two" "$SCRIPT"
@@ -61,4 +73,8 @@ if grep -Fq 'set network.wan.device=' "$TMP_DIR/custom.log"; then
 	exit 1
 fi
 
-echo "First-boot network assignment tests passed."
+NO_ULA=1 UCI_LOG="$TMP_DIR/ula.log" PATH="$TMP_DIR/bin:$PATH" \
+	ROUTER_CORE_SYS_CLASS_NET="$TMP_DIR/sys-one" "$SCRIPT"
+grep -Fq 'set network.globals.ula_prefix=fd00:1122:3344::/48' "$TMP_DIR/ula.log"
+
+echo "First-boot network assignment and ULA tests passed."

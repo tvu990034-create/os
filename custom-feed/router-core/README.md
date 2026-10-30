@@ -14,7 +14,7 @@ The network defaults are applied once by OpenWrt's UCI defaults mechanism. A non
 
 ## Firewall
 
-The default policy rejects unsolicited input and forwarding. LAN is trusted, WAN input is rejected, and LAN-to-WAN forwarding uses masquerading. IPv6 ICMP input types required for normal IPv6 operation are allowed from WAN.
+The default policy rejects unsolicited input and forwarding. LAN is trusted, WAN input is rejected, and LAN-to-WAN forwarding uses masquerading. DHCPv6 replies and MLD are allowed from WAN; essential IPv6 ICMP input and forwarding error messages are rate-limited and allowed.
 
 ## Diagnostics
 

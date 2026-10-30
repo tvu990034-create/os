@@ -18,7 +18,7 @@ if ! uci -q get network.globals.ula_prefix >/dev/null 2>&1; then
 	ula_id="$(cat /proc/sys/kernel/random/uuid 2>/dev/null | tr -d '-' | cut -c1-10)"
 	case "$ula_id" in
 		??????????)
-			ula_prefix="fd$(printf '%.2s' "$ula_id"):$(printf '%.4s' "${ula_id#??}"):$(printf '%.4s' "${ula_id#????}")::/48"
+			ula_prefix="fd$(printf '%.2s' "$ula_id"):$(printf '%.4s' "${ula_id#??}"):$(printf '%.4s' "${ula_id#??????}")::/48"
 			uci set network.globals.ula_prefix="$ula_prefix"
 			;;
 		*)

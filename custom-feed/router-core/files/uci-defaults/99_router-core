@@ -1,6 +1,8 @@
 #!/bin/sh
 # Configure safe, hardware-aware defaults once on first boot.
-# Existing custom network configurations are left untouched.
+# Existing custom network layouts are preserved.
+
+set -eu
 
 log() {
 	logger -t router-core "$1"
@@ -12,6 +14,7 @@ if ! command -v uci >/dev/null 2>&1; then
 fi
 
 SYS_CLASS_NET=${ROUTER_CORE_SYS_CLASS_NET:-/sys/class/net}
+NETWORK_CHANGED=0
 
 # Generate a per-device ULA prefix instead of shipping one shared prefix.
 if ! uci -q get network.globals.ula_prefix >/dev/null 2>&1; then
@@ -20,6 +23,7 @@ if ! uci -q get network.globals.ula_prefix >/dev/null 2>&1; then
 		??????????)
 			ula_prefix="fd$(printf '%.2s' "$ula_id"):$(printf '%.4s' "${ula_id#??}"):$(printf '%.4s' "${ula_id#??????}")::/48"
 			uci set network.globals.ula_prefix="$ula_prefix"
+			NETWORK_CHANGED=1
 			;;
 		*)
 			log "could not generate a unique IPv6 ULA prefix; leaving it unset"
@@ -49,6 +53,7 @@ if [ "$BRIDGE_NAME" = "br-lan" ]; then
 			LAN_IFACE="$1"
 			shift
 			uci add_list network.lan_bridge.ports="$LAN_IFACE"
+			NETWORK_CHANGED=1
 			log "assigned first detected wired interface $LAN_IFACE to LAN"
 
 			if [ "$#" -gt 0 ]; then
@@ -63,19 +68,26 @@ if [ "$BRIDGE_NAME" = "br-lan" ]; then
 					uci set network.wan6='interface'
 					uci set network.wan6.device="$WAN_IFACE"
 					uci set network.wan6.proto='dhcpv6'
+					NETWORK_CHANGED=1
 					log "assigned second detected wired interface $WAN_IFACE to WAN"
 				fi
 			fi
 
 			for iface in "$@"; do
 				uci add_list network.lan_bridge.ports="$iface"
+				NETWORK_CHANGED=1
 				log "assigned additional wired interface $iface to LAN"
 			done
-			uci commit network
 		else
 			log "no physical wired interfaces found; LAN bridge has no member ports"
 		fi
 	fi
+fi
+
+# Commit once, including the ULA-only/no-NIC and preconfigured-bridge cases.
+if [ "$NETWORK_CHANGED" -eq 1 ]; then
+	uci commit network
+	log "network defaults committed"
 fi
 
 # Enable one-shot boot diagnostics through the normal rc.common mechanism.

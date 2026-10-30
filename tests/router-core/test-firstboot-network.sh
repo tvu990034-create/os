@@ -1,5 +1,5 @@
 #!/bin/sh
-# Exercise first-boot NIC assignment with fake sysfs and a fake UCI command.
+# Exercise first-boot NIC assignment, ULA persistence and safe preservation.
 
 set -eu
 
@@ -13,6 +13,7 @@ mkdir -p "$TMP_DIR/sys-two/eno1/device" "$TMP_DIR/sys-two/eno2/device"
 mkdir -p "$TMP_DIR/sys-two/lo" "$TMP_DIR/sys-two/wlan0/device" "$TMP_DIR/sys-two/wlan0/wireless"
 mkdir -p "$TMP_DIR/sys-one/eno1/device" "$TMP_DIR/sys-one/lo"
 mkdir -p "$TMP_DIR/sys-custom/eno1/device" "$TMP_DIR/sys-custom/eno2/device"
+mkdir -p "$TMP_DIR/sys-empty/lo"
 
 cat > "$TMP_DIR/bin/uci" <<'UCI'
 #!/bin/sh
@@ -27,7 +28,10 @@ if [ "$1" = "get" ]; then
 			exit 0
 			;;
 		network.lan_bridge.name) echo "br-lan"; exit 0 ;;
-		network.lan_bridge.ports) exit 1 ;;
+		network.lan_bridge.ports)
+			[ "$EXISTING_LAN" = "1" ] && { echo "eno1"; exit 0; }
+			exit 1
+			;;
 		network.wan.proto)
 			[ "$EXISTING_WAN" = "1" ] && { echo "static"; exit 0; }
 			exit 1
@@ -82,6 +86,7 @@ run_case two "$TMP_DIR/sys-two" env
 assert_log two 'add_list network.lan_bridge.ports=eno1'
 assert_log two 'set network.wan.device=eno2'
 assert_log two 'set network.wan6.proto=dhcpv6'
+assert_log two 'commit network'
 if grep -Fq 'wlan0' "$TMP_DIR/two.log"; then
 	echo "FAIL: wireless interface was assigned as an ethernet port" >&2
 	exit 1
@@ -89,12 +94,14 @@ fi
 
 run_case one "$TMP_DIR/sys-one" env
 assert_log one 'add_list network.lan_bridge.ports=eno1'
+assert_log one 'commit network'
 if grep -Fq 'set network.wan.device=' "$TMP_DIR/one.log"; then
 	echo "FAIL: a WAN interface was invented on single-NIC hardware" >&2
 	exit 1
 fi
 
 run_case custom "$TMP_DIR/sys-custom" env EXISTING_WAN=1
+assert_log custom 'commit network'
 if grep -Fq 'set network.wan.device=' "$TMP_DIR/custom.log"; then
 	echo "FAIL: existing WAN configuration was overwritten" >&2
 	exit 1
@@ -102,5 +109,20 @@ fi
 
 run_case ula "$TMP_DIR/sys-one" env NO_ULA=1
 assert_log ula 'set network.globals.ula_prefix=fd00:1122:3344::/48'
+assert_log ula 'commit network'
 
-echo "First-boot network assignment and ULA tests passed."
+# Devices with no NIC and devices with a preconfigured bridge must still
+# persist a newly generated ULA prefix.
+run_case no-nic "$TMP_DIR/sys-empty" env NO_ULA=1
+assert_log no-nic 'set network.globals.ula_prefix=fd00:1122:3344::/48'
+assert_log no-nic 'commit network'
+
+run_case existing-bridge "$TMP_DIR/sys-one" env NO_ULA=1 EXISTING_LAN=1
+assert_log existing-bridge 'set network.globals.ula_prefix=fd00:1122:3344::/48'
+assert_log existing-bridge 'commit network'
+if grep -Fq 'add_list network.lan_bridge.ports=' "$TMP_DIR/existing-bridge.log"; then
+	echo "FAIL: existing bridge members were modified" >&2
+	exit 1
+fi
+
+echo "First-boot network, ULA persistence and preservation tests passed."

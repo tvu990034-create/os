@@ -34,9 +34,8 @@ printf '%s\n' "$OUTPUT" | grep -Fq 'ingress_ifindex=3 packet_length=128 ip_versi
 printf '%s\n' "$OUTPUT" | grep -Fq 'actions=0x00000000'
 echo "DSA runner metadata and decision test passed."
 
-EXAMPLE_SOURCE="$ROOT_DIR/examples/dsa/protocol-classifier/protocol-classifier.c"
-"$CC" -std=c11 -Wall -Wextra -Werror -fPIC -shared \
-	-I "$INCLUDE_DIR" -o "$TMP_DIR/protocol-classifier.so" "$EXAMPLE_SOURCE"
+make -C "$ROOT_DIR/examples/dsa/protocol-classifier" clean all \
+	CC="$CC" ABI_INCLUDE="$INCLUDE_DIR" TARGET="$TMP_DIR/protocol-classifier.so"
 
 OUTPUT="$("$TMP_DIR/router-dsa-run" "$TMP_DIR/protocol-classifier.so" 3 128 6 6)"
 printf '%s\n' "$OUTPUT" | grep -Fq 'plugin=protocol-classifier version=1.0.0 stage=classify'

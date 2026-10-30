@@ -26,9 +26,8 @@ static int classifier_process(struct router_dsa_context *context,
                               const struct router_dsa_packet *packet,
                               struct router_dsa_decision *decision)
 {
-	(void)context;
-
-	if (packet == 0 || decision == 0)
+	if (context == 0 || context->abi_version != ROUTER_DSA_ABI_VERSION ||
+	    packet == 0 || decision == 0)
 		return -1;
 	if (packet->struct_size < sizeof(*packet) ||
 	    decision->struct_size < sizeof(*decision))

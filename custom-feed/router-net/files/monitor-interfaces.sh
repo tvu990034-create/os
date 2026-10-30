@@ -1,78 +1,104 @@
 #!/bin/sh
 # Router OS Interface Monitor
-# Monitors network interface state and triggers recovery actions
+# Observe Linux operational state without overriding netifd's interface policy.
 
-INTERFACE_STATE_FILE="/tmp/router-net/interface-states"
-RECOVERY_DELAY=5
+SYS_CLASS_NET="${SYS_CLASS_NET:-/sys/class/net}"
+STATE_DIR="${STATE_DIR:-/tmp/router-net/interface-states}"
+INTERVAL="${2:-${INTERVAL:-10}}"
+
+case "$INTERVAL" in
+	''|*[!0-9]*) INTERVAL=10 ;;
+esac
+[ "$INTERVAL" -ge 1 ] 2>/dev/null || INTERVAL=10
 
 log_msg() {
-	logger -t router-net "$1"
+	logger -t router-net "$1" 2>/dev/null || true
+}
+
+read_interface_state() {
+	iface="$1"
+	iface_dir="$SYS_CLASS_NET/$iface"
+
+	if [ ! -d "$iface_dir" ]; then
+		printf '%s\n' "down"
+		return 0
+	fi
+
+	if [ -r "$iface_dir/operstate" ]; then
+		state="$(cat "$iface_dir/operstate" 2>/dev/null || true)"
+		[ -n "$state" ] || state="unknown"
+	else
+		state="unknown"
+	fi
+
+	printf '%s\n' "$state"
 }
 
 save_interface_state() {
-	local iface=$1
-	local state=$2
-	mkdir -p $(dirname "$INTERFACE_STATE_FILE")
-	echo "$state" > "$INTERFACE_STATE_FILE/$iface"
+	iface="$1"
+	state="$2"
+
+	if ! mkdir -p "$STATE_DIR"; then
+		log_msg "Unable to create interface state directory: $STATE_DIR"
+		return 1
+	fi
+
+	printf '%s\n' "$state" > "$STATE_DIR/$iface"
 }
 
 get_interface_state() {
-	local iface=$1
-	if [ -f "$INTERFACE_STATE_FILE/$iface" ]; then
-		cat "$INTERFACE_STATE_FILE/$iface"
+	iface="$1"
+	state_file="$STATE_DIR/$iface"
+
+	if [ -r "$state_file" ]; then
+		cat "$state_file"
 	else
-		echo "unknown"
+		printf '%s\n' "unknown"
 	fi
 }
 
 check_interface() {
-	local iface=$1
-	local current_state
-	
-	# Get current operational state
-	if [ -d "/sys/class/net/$iface" ]; then
-		current_state="up"
-	else
-		current_state="down"
-	fi
-	
-	local prev_state=$(get_interface_state "$iface")
-	
-	if [ "$current_state" != "$prev_state" ]; then
-		log_msg "Interface $iface state changed: $prev_state -> $current_state"
+	iface="$1"
+	current_state="$(read_interface_state "$iface")"
+	previous_state="$(get_interface_state "$iface")"
+
+	if [ "$current_state" != "$previous_state" ]; then
+		log_msg "Interface $iface operational state changed: $previous_state -> $current_state"
 		save_interface_state "$iface" "$current_state"
-		
-		# If interface came up, trigger network reconfiguration
-		if [ "$current_state" = "up" ]; then
-			log_msg "Interface $iface came up, triggering ifup"
-			/sbin/ifup "$iface" 2>/dev/null || true
-		fi
 	fi
 }
 
 monitor_all_interfaces() {
-	for iface in /sys/class/net/*; do
-		ifname=$(basename "$iface")
-		# Skip loopback
-		[ "$ifname" = "lo" ] && continue
-		check_interface "$ifname"
+	if [ ! -d "$SYS_CLASS_NET" ]; then
+		log_msg "Network sysfs directory is unavailable: $SYS_CLASS_NET"
+		return 1
+	fi
+
+	for iface_path in "$SYS_CLASS_NET"/*; do
+		[ -e "$iface_path" ] || continue
+		iface="${iface_path##*/}"
+		[ "$iface" = "lo" ] && continue
+		check_interface "$iface"
 	done
 }
 
-# Main monitoring loop
 monitor_loop() {
-	log_msg "Interface monitor started"
-	
-	while true; do
+	log_msg "Interface monitor started (interval: ${INTERVAL}s)"
+	while :; do
 		monitor_all_interfaces
-		sleep 10
+		sleep "$INTERVAL"
 	done
 }
 
-# Run in background if called directly
-if [ "$1" = "--daemon" ]; then
-	monitor_loop
-else
-	# Single check mode
-	monitor_all_interfaces
-fi
+case "${1:-}" in
+	--daemon)
+		monitor_loop
+		;;
+	""|--once)
+		monitor_all_interfaces
+		;;
+	*)
+		echo "Usage: $0 [--once | --daemon [interval-seconds]]" >&2
+		exit 2
+		;;
+esac

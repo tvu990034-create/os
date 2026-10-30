@@ -1,0 +1,8 @@
+#!/bin/sh
+# Enable the Router OS network monitor on first boot.
+
+if [ -x /etc/init.d/router-net ]; then
+	/etc/init.d/router-net enable
+fi
+
+exit 0

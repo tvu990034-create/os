@@ -19,14 +19,13 @@ define Package/router-net
   SECTION:=net
   CATEGORY:=Network
   TITLE:=Router OS Networking Extensions
-  DEPENDS:=+netifd +firewall4 +kmod-nft-core +iproute2
+  DEPENDS:=+netifd +procd +uci
   DEFAULT:=n
 endef
 
 define Package/router-net/description
-  Networking extensions for Router OS including monitoring framework
-  and interfaces for future packet processing optimizations.
-  This package provides modular integration points for future DSA implementations.
+  Router OS network interface state monitor, managed as a supervised
+  procd service and configured through UCI.
 endef
 
 define Build/Compile
@@ -36,8 +35,12 @@ endef
 define Package/router-net/install
 	$(INSTALL_DIR) $(1)/usr/libexec/router-net
 	$(INSTALL_DIR) $(1)/etc/config
+	$(INSTALL_DIR) $(1)/etc/init.d
+	$(INSTALL_DIR) $(1)/etc/uci-defaults
 	$(INSTALL_BIN) ./files/*.sh $(1)/usr/libexec/router-net/
 	$(INSTALL_CONF) ./files/config/* $(1)/etc/config/
+	$(INSTALL_BIN) ./files/init.d/* $(1)/etc/init.d/
+	$(INSTALL_BIN) ./files/uci-defaults/* $(1)/etc/uci-defaults/
 endef
 
 $(eval $(call BuildPackage,router-net))

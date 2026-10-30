@@ -39,7 +39,7 @@ define Package/router-core/install
 	$(INSTALL_DIR) $(1)/etc/config
 	$(INSTALL_DIR) $(1)/etc/hotplug.d/iface
 	$(INSTALL_DIR) $(1)/etc/hotplug.d/net
-	$(INSTALL_CONF) ./files/uci-defaults/* $(1)/etc/uci-defaults/
+	$(INSTALL_BIN) ./files/uci-defaults/* $(1)/etc/uci-defaults/
 	$(INSTALL_BIN) ./files/init.d/* $(1)/etc/init.d/
 	$(INSTALL_BIN) ./files/libexec/* $(1)/usr/libexec/router-core/
 	$(INSTALL_CONF) ./files/config/* $(1)/etc/config/

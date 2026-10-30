@@ -1,72 +1,92 @@
-#!/bin/bash
-# Reproducible Build Script for Router OS
-set -e
+#!/usr/bin/env bash
+# Build Router OS reproducibly from the pinned source manifest.
+set -Eeuo pipefail
 
-OPENWRT_COMMIT="${OPENWRT_COMMIT:-ca454c0}"
-OPENWRT_REPO="${OPENWRT_REPO:-https://github.com/openwrt/openwrt.git}"
-JOBS="${JOBS:-$(nproc)}"
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+JOBS="${JOBS:-$(getconf _NPROCESSORS_ONLN 2>/dev/null || nproc)}"
 
-echo "Router OS Reproducible Build"
-echo "OpenWrt Commit: $OPENWRT_COMMIT"
-echo "Jobs: $JOBS"
+cd "$PROJECT_ROOT"
 
-# Clone or update OpenWrt
-if [ ! -d "openwrt" ]; then
-    echo "Cloning OpenWrt..."
-    git clone $OPENWRT_REPO openwrt
-    cd openwrt
-    git checkout $OPENWRT_COMMIT
-    cd ..
-else
-    echo "OpenWrt directory exists"
-    cd openwrt
-    current_commit=$(git rev-parse HEAD)
-    if [ "$current_commit" != "$OPENWRT_COMMIT" ]; then
-        echo "Updating to $OPENWRT_COMMIT..."
-        git fetch origin
-        git checkout $OPENWRT_COMMIT
-    fi
-    cd ..
-fi
+echo "Router OS build"
+echo "Project root: $PROJECT_ROOT"
+echo "Build jobs: $JOBS"
 
-# Run setup
+# Fetch and verify every required repository from manifests/sources.lock.
+./scripts/fetch-sources.sh --required-only
+./scripts/verify-sources.sh --required-only
+
+# Prepare OpenWrt and register the local custom feed.
 ./setup.sh
 
-# Update feeds
-cd openwrt
-./scripts/feeds update custom-feed
-./scripts/feeds update packages
-./scripts/feeds update luci
-./scripts/feeds update routing
+cd "$PROJECT_ROOT/openwrt"
 
-# Install packages
-./scripts/feeds install router-core
-./scripts/feeds install router-net
-./scripts/feeds install router-tests
+# Update the exact feeds pinned by the project manifest.
+for feed in custom-feed packages luci routing; do
+    echo "Updating feed: $feed"
+    ./scripts/feeds update "$feed"
+done
 
-# Configure
+# Register Router OS packages in the OpenWrt build tree.
+for package in router-core router-net router-tests; do
+    echo "Installing feed package: $package"
+    ./scripts/feeds install "$package"
+done
+
+# Select a generic x86-64 target suitable for QEMU and x86 mini PCs.
 make defconfig
-echo "CONFIG_TARGET_x86=y" >> .config
-echo "CONFIG_TARGET_x86_64=y" >> .config
-echo "CONFIG_TARGET_x86_64_Generic=y" >> .config
-echo "CONFIG_PACKAGE_router-core=y" >> .config
-echo "CONFIG_PACKAGE_router-net=y" >> .config
-echo "CONFIG_PACKAGE_router-tests=y" >> .config
-echo "CONFIG_PACKAGE_kmod-e1000=y" >> .config
-echo "CONFIG_PACKAGE_kmod-igb=y" >> .config
-echo "CONFIG_PACKAGE_kmod-r8169=y" >> .config
-make oldconfig
 
-# Build
-make toolchain -j$JOBS
-make package/router-core/compile -j$JOBS
-make package/router-net/compile -j$JOBS
-make package/router-tests/compile -j$JOBS
-make -j$JOBS
+set_config() {
+    local key="$1"
+    local value="$2"
+    local line="${key}=${value}"
 
-# Check output
-echo "=== Build Output ==="
-ls -la bin/packages/x86_64/base/router-core_*.ipk
-ls -la bin/packages/x86_64/network/router-net_*.ipk
-ls -la bin/packages/x86_64/utils/router-tests_*.ipk
-ls -la bin/targets/x86_64/*.img.gz
+    if grep -qE "^(${key}=|# ${key} is not set$)" .config; then
+        sed -i -E "s|^(${key}=.*|# ${key} is not set)$|${line}|" .config
+    else
+        printf '%s\n' "$line" >> .config
+    fi
+}
+
+set_config CONFIG_TARGET_x86 y
+set_config CONFIG_TARGET_x86_64 y
+set_config CONFIG_TARGET_x86_64_Generic y
+set_config CONFIG_PACKAGE_router-core y
+set_config CONFIG_PACKAGE_router-net y
+set_config CONFIG_PACKAGE_router-tests y
+set_config CONFIG_PACKAGE_kmod-e1000 y
+set_config CONFIG_PACKAGE_kmod-igb y
+set_config CONFIG_PACKAGE_kmod-r8169 y
+
+make defconfig
+
+# Build host tools/toolchain, then the actual custom feed packages.
+make toolchain/install -j"$JOBS" V=s
+for package in router-core router-net router-tests; do
+    make "package/feeds/custom-feed/$package/compile" -j"$JOBS" V=s
+done
+
+# Build the complete firmware image.
+make -j"$JOBS" V=s
+
+# Confirm the custom packages and generic x86/64 firmware image exist.
+PACKAGE_DIR="bin/packages/x86_64"
+for package in router-core router-net router-tests; do
+    package_file="$(find "$PACKAGE_DIR" -type f -name "${package}_*.ipk" -print -quit)"
+    if [ -z "$package_file" ]; then
+        echo "ERROR: $package package was not produced."
+        find "$PACKAGE_DIR" -maxdepth 4 -type f -name '*.ipk' -print || true
+        exit 1
+    fi
+    echo "Built package: $package_file"
+done
+
+IMAGE_DIR="bin/targets/x86/64"
+image_file="$(find "$IMAGE_DIR" -maxdepth 1 -type f -name '*.img.gz' -print -quit)"
+if [ -z "$image_file" ]; then
+    echo "ERROR: No compressed x86/64 disk image was produced."
+    find bin/targets -maxdepth 4 -type f -print 2>/dev/null || true
+    exit 1
+fi
+
+echo "Built firmware image: $image_file"
+echo "Router OS build completed successfully."

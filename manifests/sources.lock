@@ -1,70 +1,77 @@
 # Router OS Source Manifest
 # This file records all upstream source repositories and their pinned revisions
 # This allows reproducible builds across different environments
+#
+# Format: INI-style sections
+# type = required | reference
+# required repositories are needed for the build
+# reference repositories are optional and for future reference
 
 [openwrt]
 name = OpenWrt
 url = https://github.com/openwrt/openwrt.git
 commit = ca454c00b69fc684e1c5ea52f62733c4e644e799
 branch = master
+type = required
 purpose = Core OpenWrt build system and source tree
 integration = Primary build system, cloned to openwrt/
-required = true
 managed_by = Router OS (pinned)
 notes = Manages its own Linux kernel (6.18.55) via target/linux/generic/kernel-6.18
+ignore_changes = custom/, feeds.conf.local
 
 [packages]
 name = OpenWrt Packages Feed
 url = https://github.com/openwrt/packages.git
 commit = 6307bdf3b7997a4de5317e127383b4266fe36108
 branch = master
+type = required
 purpose = OpenWrt package feed for standard packages
 integration = Managed by OpenWrt feeds system (src-git packages)
-required = true
 managed_by = OpenWrt (feeds)
-notes = Cloned by setup.sh for local development, or fetched remotely in CI
+notes = Can be fetched locally or remotely. If local, use pinned commit.
 
 [luci]
 name = LuCI Web Interface
 url = https://github.com/openwrt/luci.git
 commit = 0e2783557642331eb0afdc92d02c1d624f44fef7
 branch = master
+type = required
 purpose = OpenWrt web interface
 integration = Managed by OpenWrt feeds system (src-git luci)
-required = true
 managed_by = OpenWrt (feeds)
-notes = Cloned by setup.sh for local development, or fetched remotely in CI
+notes = Can be fetched locally or remotely. If local, use pinned commit.
 
 [routing]
 name = OpenWrt Routing Feed
 url = https://github.com/openwrt/routing.git
 commit = 4b9891b9136259f93294a424507ed24c5e8c1cbd
 branch = master
+type = required
 purpose = OpenWrt routing packages (bird, quagga, etc.)
 integration = Managed by OpenWrt feeds system (src-git routing)
-required = true
 managed_by = OpenWrt (feeds)
-notes = Cloned by setup.sh for local development, or fetched remotely in CI
+notes = Can be fetched locally or remotely. If local, use pinned commit.
 
 [linux]
 name = Linux Kernel (Reference)
-url = https://github.com/torvalds/linux.git
+url = https://github.com/openwrt/linux.git
 commit = c339f4010dea8b0d754f84ace70cd1b089878ef8
 branch = master
+type = reference
 purpose = Reference for kernel development (not used in build)
 integration = Not integrated into build (OpenWrt manages its own kernel)
-required = false
 managed_by = Router OS (reference only)
-notes = NOT REQUIRED for OpenWrt build. OpenWrt uses kernel 6.18.55 via its own mechanism.
+notes = NOT REQUIRED for OpenWrt build. OpenWrt uses kernel 6.18.55 via its own mechanism. This is the OpenWrt-maintained kernel tree, not upstream.
+ignore_changes = *
 
 [iproute2]
 name = iproute2 (Reference)
 url = https://github.com/iproute2/iproute2.git
 commit = d1341d07788e8148ce209107813861321a1fb690
 branch = master
+type = reference
 purpose = Reference for networking tools (not used in build)
 integration = Not integrated into build (OpenWrt provides via package)
-required = false
 managed_by = Router OS (reference only)
 notes = NOT REQUIRED for OpenWrt build. Available as OpenWrt package.
 
@@ -73,9 +80,9 @@ name = DPDK (Reference)
 url = https://github.com/DPDK/dpdk.git
 commit = e3e29edb3868b14051a3d2f9a52652e5962c1a94
 branch = master
+type = reference
 purpose = Reference for packet processing optimization (future)
 integration = Not integrated into build
-required = false
 managed_by = Router OS (reference only)
 notes = NOT REQUIRED for current architecture. Future reference for optimization.
 
@@ -84,9 +91,9 @@ name = XDP Tutorial (Reference)
 url = https://github.com/xdp-project/xdp-tutorial.git
 commit = 4e2bf5658434e8ae12f281b9b182bb188766a319
 branch = master
+type = reference
 purpose = Reference for XDP/eBPF programming (future)
 integration = Not integrated into build
-required = false
 managed_by = Router OS (reference only)
 notes = NOT REQUIRED for current architecture. Future reference for XDP.
 
@@ -95,9 +102,9 @@ name = Buildroot (Reference)
 url = https://github.com/buildroot/buildroot.git
 commit = 727b904c13bbc2a9a7a530b1f8e47d7d180c2768
 branch = master
+type = reference
 purpose = Reference for alternative build system (not used)
 integration = Not integrated into build
-required = false
 managed_by = Router OS (reference only)
 notes = NOT REQUIRED. OpenWrt uses its own build system.
 
@@ -106,9 +113,9 @@ name = U-Boot (Reference)
 url = https://github.com/u-boot/u-boot.git
 commit = 03e45557e1f38a39a0c80fe30483130ff376cf92
 branch = master
+type = reference
 purpose = Reference for bootloader (not used for x86 target)
 integration = Not integrated into build
-required = false
 managed_by = Router OS (reference only)
 notes = NOT REQUIRED for x86 target. Future reference for ARM platforms.
 
@@ -117,8 +124,8 @@ name = Coreboot (Reference)
 url = https://github.com/coreboot/coreboot.git
 commit = 0c9190b7bb7f099c9b0b35b7ac8b4793d2499111
 branch = master
+type = reference
 purpose = Reference for firmware (not used)
 integration = Not integrated into build
-required = false
 managed_by = Router OS (reference only)
 notes = NOT REQUIRED for current architecture. Future reference only.

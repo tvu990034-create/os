@@ -7,6 +7,10 @@ on:
     branches: [ phase-3-build-verification ]
   workflow_dispatch:
 
+env:
+  OPENWRT_COMMIT: ca454c0
+  OPENWRT_REPO: https://github.com/openwrt/openwrt.git
+
 jobs:
   build:
     runs-on: ubuntu-22.04
@@ -91,22 +95,21 @@ jobs:
         ls -la bin/packages/x86_64/network/router-net_*.ipk 2>/dev/null || (echo "router-net package NOT found" && exit 1)
         ls -la bin/packages/x86_64/utils/router-tests_*.ipk 2>/dev/null || (echo "router-tests package NOT found" && exit 1)
         echo "=== Checking for images ==="
-        ls -la bin/targets/x86/64/*.img.gz 2>/dev/null || (echo "Image NOT found" && exit 1)
+        ls -la bin/targets/x86_64/*.img.gz 2>/dev/null || (echo "Image NOT found" && exit 1)
 
     - name: Extract Image for QEMU
       working-directory: openwrt
       run: |
-        IMAGE=$(ls bin/targets/x86/64/*.img.gz | head -1)
+        IMAGE=$(ls bin/targets/x86_64/*.img.gz | head -1)
         gunzip -k "$IMAGE"
-        ls -la bin/targets/x86/64/*.img
+        ls -la bin/targets/x86_64/*.img
 
     - name: QEMU Boot Test
       working-directory: openwrt
-      continue-on-error: true
       timeout-minutes: 10
       run: |
         sudo apt-get install -y qemu-system-x86
-        IMAGE=$(ls bin/targets/x86/64/*.img | head -1)
+        IMAGE=$(ls bin/targets/x86_64/*.img | head -1)
         echo "Booting image: $IMAGE"
         
         timeout 300 qemu-system-x86_64 \
@@ -115,7 +118,7 @@ jobs:
           -net nic,model=e1000 \
           -net user \
           -nographic \
-          -serial file:/tmp/qemu-serial.log || true
+          -serial file:/tmp/qemu-serial.log || (echo "QEMU failed or timed out" && exit 1)
         
         echo "=== Serial Log (last 50 lines) ==="
         tail -50 /tmp/qemu-serial.log || true
@@ -123,7 +126,8 @@ jobs:
         if grep -q "init done" /tmp/qemu-serial.log 2>/dev/null; then
             echo "✓ QEMU boot test PASSED"
         else
-            echo "⚠ QEMU boot test INCONCLUSIVE (may not support serial in CI)"
+            echo "✗ QEMU boot test FAILED - init done not found"
+            exit 1
         fi
 
     - name: Upload Build Logs
@@ -139,7 +143,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: openwrt-images
-        path: openwrt/bin/targets/x86/64/
+        path: openwrt/bin/targets/x86_64/
         retention-days: 7
 
     - name: Upload Packages

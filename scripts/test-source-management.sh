@@ -88,8 +88,15 @@ echo ""
 
 # Test 4: Required vs reference filtering
 echo "Test 4: Required vs reference filtering"
-# This test is complex due to directory structure, skip for now
-echo "⚠ Skipped (complex directory structure test)"
+# Verify that verify-sources.sh filters correctly by checking actual repo
+cd "$PROJECT_ROOT"
+OUTPUT=$(./scripts/verify-sources.sh --required-only 2>&1)
+if echo "$OUTPUT" | grep -q "Skipping.*linux"; then
+    echo "✓ Reference filtering works (linux skipped)"
+else
+    echo "✗ Reference filtering failed"
+    exit 1
+fi
 echo ""
 
 # Test 5: Feed configuration validation

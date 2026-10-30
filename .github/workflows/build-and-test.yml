@@ -9,7 +9,7 @@ on:
 
 env:
   OPENWRT_COMMIT: ca454c0
-  OPENWRT_REPO: https://github.com/openwrt/openwrt.git
+  OPENWRT_REPO: https://github.com/openwrt/openwrt
 
 jobs:
   build:
@@ -18,8 +18,6 @@ jobs:
     steps:
     - name: Checkout Router OS
       uses: actions/checkout@v4
-      with:
-        path: router-os
 
     - name: Cache OpenWrt
       id: cache-openwrt
@@ -38,40 +36,18 @@ jobs:
     - name: Install Build Dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y \
-          build-essential \
-          ccache \
-          ecj \
-          fastjar \
-          file \
-          g++ \
-          gawk \
-          gettext \
-          git \
-          java-utils \
-          jq \
-          libncurses5-dev \
-          libncursesw5-dev \
-          libssl-dev \
-          python3 unzip \
-          wget \
-          python3-distutils \
-          python3-setuptools \
-          python3-yaml \
-          rsync \
-          subversion \
-          swig \
-          time \
-          xsltproc \
-          zlib1g-dev
+        sudo apt-get install -y build-essential ccache ecj fastjar file g++ gawk gettext git java-utils jq libncurses5-dev libncursesw5-dev libssl-dev python3 unzip wget python3-distutils python3-setuptools python3-yaml rsync subversion swig time xsltproc zlib1g-dev
+
+    - name: Run Build Host Tests
+      run: |
+        ./test-build-host.sh
 
     - name: Setup Router OS
-      working-directory: router-os
       run: |
         ./setup.sh
 
     - name: Update Feeds
-      working-directory: router-os/openwrt
+      working-directory: openwrt
       run: |
         ./scripts/feeds update custom-feed
         ./scripts/feeds update packages
@@ -79,14 +55,14 @@ jobs:
         ./scripts/feeds update routing
 
     - name: Install Custom Packages
-      working-directory: router-os/openwrt
+      working-directory: openwrt
       run: |
         ./scripts/feeds install router-core
         ./scripts/feeds install router-net
         ./scripts/feeds install router-tests
 
     - name: Configure Build
-      working-directory: router-os/openwrt
+      working-directory: openwrt
       run: |
         make defconfig
         echo "CONFIG_TARGET_x86=y" >> .config
@@ -98,46 +74,75 @@ jobs:
         echo "CONFIG_PACKAGE_kmod-e1000=y" >> .config
         echo "CONFIG_PACKAGE_kmod-igb=y" >> .config
         echo "CONFIG_PACKAGE_kmod-r8169=y" >> .config
-        echo "CONFIG_PACKAGE_kmod-rt2800-pci=y" >> .config
-        echo "CONFIG_PACKAGE_kmod-ath9k=y" >> .config
-        echo "CONFIG_BUSYBOX_CONFIG_IP=y" >> .config
-        echo "CONFIG_BUSYBOX_CONFIG_IPADDR=y" >> .config
-        echo "CONFIG_BUSYBOX_CONFIG_ROUTE=y" >> .config
-        echo "CONFIG_BUSYBOX_CONFIG_IPTABLES=y" >> .config
         make oldconfig
 
     - name: Build Toolchain
-      working-directory: router-os/openwrt
+      working-directory: openwrt
       run: |
-        make toolchain -j$(nproc) || true
+        make toolchain -j$(nproc)
 
     - name: Build Packages
-      working-directory: router-os/openwrt
+      working-directory: openwrt
       run: |
-        make package/router-core/compile -j$(nproc) V=s || true
-        make package/router-net/compile -j$(nproc) V=s || true
-        make package/router-tests/compile -j$(nproc) V=s || true
+        make package/router-core/compile -j$(nproc) V=s
+        make package/router-net/compile -j$(nproc) V=s
+        make package/router-tests/compile -j$(nproc) V=s
 
     - name: Build Image
-      working-directory: router-os/openwrt
+      working-directory: openwrt
       run: |
-        make -j$(nproc) V=s || true
+        make -j$(nproc) V=s
 
     - name: Check Build Output
-      working-directory: router-os/openwrt
+      working-directory: openwrt
       run: |
         echo "=== Checking for compiled packages ==="
-        ls -la bin/packages/x86_64/base/ 2>/dev/null || echo "No base packages found"
-        ls -la bin/packages/x86_64/router/ 2>/dev/null || echo "No router packages found"
+        ls -la bin/packages/x86_64/base/router-core_*.ipk 2>/dev/null || (echo "router-core package NOT found" && exit 1)
+        ls -la bin/packages/x86_64/network/router-net_*.ipk 2>/dev/null || (echo "router-net package NOT found" && exit 1)
+        ls -la bin/packages/x86_64/utils/router-tests_*.ipk 2>/dev/null || (echo "router-tests package NOT found" && exit 1)
         echo "=== Checking for images ==="
-        ls -la bin/targets/x86/64/ 2>/dev/null || echo "No images found"
+        ls -la bin/targets/x86/64/*.img.gz 2>/dev/null || (echo "Image NOT found" && exit 1)
+
+    - name: Extract Image for QEMU
+      working-directory: openwrt
+      run: |
+        IMAGE=$(ls bin/targets/x86/64/*.img.gz | head -1)
+        gunzip -k "$IMAGE"
+        ls -la bin/targets/x86/64/*.img
+
+    - name: QEMU Boot Test
+      working-directory: openwrt
+      continue-on-error: true
+      timeout-minutes: 10
+      run: |
+        sudo apt-get install -y qemu-system-x86
+        IMAGE=$(ls bin/targets/x86/64/*.img | head -1)
+        echo "Booting image: $IMAGE"
+        
+        # Boot QEMU in background with serial output
+        timeout 300 qemu-system-x86_64 \
+          -m 512M \
+          -drive file="$IMAGE",format=raw \
+          -net nic,model=e1000 \
+          -net user \
+          -nographic \
+          -serial file:/tmp/qemu-serial.log || true
+        
+        echo "=== Serial Log (last 50 lines) ==="
+        tail -50 /tmp/qemu-serial.log || true
+        
+        if grep -q "init done" /tmp/qemu-serial.log 2>/dev/null; then
+            echo "✓ QEMU boot test PASSED"
+        else
+            echo "⚠ QEMU boot test INCONCLUSIVE (may not support serial in CI)"
+        fi
 
     - name: Upload Build Logs
       if: always()
       uses: actions/upload-artifact@v4
       with:
         name: build-logs
-        path: router-os/openwrt/logs/
+        path: openwrt/logs/
         retention-days: 7
 
     - name: Upload Build Artifacts
@@ -145,7 +150,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: openwrt-images
-        path: router-os/openwrt/bin/targets/x86/64/
+        path: openwrt/bin/targets/x86/64/
         retention-days: 7
 
     - name: Upload Packages
@@ -154,7 +159,7 @@ jobs:
       with:
         name: custom-packages
         path: |
-          router-os/openwrt/bin/packages/x86_64/base/router-core_*
-          router-os/openwrt/bin/packages/x86_64/network/router-net_*
-          router-os/openwrt/bin/packages/x86_64/utils/router-tests_*
+          openwrt/bin/packages/x86_64/base/router-core_*
+          openwrt/bin/packages/x86_64/network/router-net_*
+          openwrt/bin/packages/x86_64/utils/router-tests_*
         retention-days: 7

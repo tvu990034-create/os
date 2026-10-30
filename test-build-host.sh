@@ -8,10 +8,10 @@ echo ""
 FAILED=0
 
 echo "Test 1: Setup script syntax"
-if bash -n setup.sh; then
-    echo "✓ setup.sh syntax valid"
+if bash -n setup.sh && bash -n build-local.sh; then
+    echo "✓ setup.sh and build-local.sh syntax valid"
 else
-    echo "✗ setup.sh syntax invalid"
+    echo "✗ setup/build script syntax invalid"
     FAILED=1
 fi
 echo ""

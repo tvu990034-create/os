@@ -87,13 +87,20 @@ else
 fi
 echo ""
 
-# Test 4: Required vs reference filtering
-echo "Test 4: Required vs reference filtering"
-# Verify that verify-sources.sh filters correctly by checking actual repo
+# Test 4: Required and reference repository coverage
+echo "Test 4: Required and reference repository coverage"
 cd "$PROJECT_ROOT"
 OUTPUT=$(./scripts/verify-sources.sh --required-only 2>&1)
+for required_repo in openwrt packages luci routing; do
+    if echo "$OUTPUT" | grep -Fq "Verifying: $required_repo"; then
+        echo "✓ Required repository processed: $required_repo"
+    else
+        echo "✗ Required repository was skipped: $required_repo"
+        exit 1
+    fi
+done
 if echo "$OUTPUT" | grep -q "Skipping.*linux"; then
-    echo "✓ Reference filtering works (linux skipped)"
+    echo "✓ Reference repositories are filtered out"
 else
     echo "✗ Reference filtering failed"
     exit 1
@@ -145,6 +152,63 @@ else
     echo "✗ router-tests package missing"
     exit 1
 fi
+echo ""
+
+# Test 7: Multi-section source fetch and verification
+echo "Test 7: Multi-section source fetch and verification"
+FETCH_TEST_ROOT="$TEST_DIR/fetch-project"
+FETCH_MANIFEST="$FETCH_TEST_ROOT/manifests/sources.lock"
+mkdir -p "$FETCH_TEST_ROOT/manifests"
+: > "$FETCH_MANIFEST"
+
+create_local_source() {
+    local repo_name="$1"
+    local source_dir="$TEST_DIR/$repo_name-source"
+    local revision
+
+    mkdir -p "$source_dir"
+    git init -q "$source_dir"
+    git -C "$source_dir" config user.name "Router OS Test"
+    git -C "$source_dir" config user.email "router-os-test@example.invalid"
+    printf '%s\n' "$repo_name" > "$source_dir/marker.txt"
+    git -C "$source_dir" add marker.txt
+    git -C "$source_dir" commit -q -m "Create $repo_name test source"
+    revision="$(git -C "$source_dir" rev-parse HEAD)"
+
+    cat >> "$FETCH_MANIFEST" << EOF
+[$repo_name]
+url = $source_dir
+commit = $revision
+type = required
+required = true
+
+EOF
+}
+
+create_local_source first-repo
+create_local_source second-repo
+
+FETCH_OUTPUT=$(PROJECT_ROOT="$FETCH_TEST_ROOT" MANIFEST="$FETCH_MANIFEST" "$PROJECT_ROOT/scripts/fetch-sources.sh" --required-only 2>&1)
+for repo_name in first-repo second-repo; do
+    if [ -d "$FETCH_TEST_ROOT/$repo_name/.git" ] && echo "$FETCH_OUTPUT" | grep -Fq "Processing: $repo_name"; then
+        echo "✓ Source fetch processed $repo_name"
+    else
+        echo "✗ Source fetch did not process $repo_name"
+        echo "$FETCH_OUTPUT"
+        exit 1
+    fi
+done
+
+VERIFY_OUTPUT=$(PROJECT_ROOT="$FETCH_TEST_ROOT" MANIFEST="$FETCH_MANIFEST" "$PROJECT_ROOT/scripts/verify-sources.sh" --required-only 2>&1)
+for repo_name in first-repo second-repo; do
+    if echo "$VERIFY_OUTPUT" | grep -Fq "Verifying: $repo_name"; then
+        echo "✓ Source verification processed $repo_name"
+    else
+        echo "✗ Source verification did not process $repo_name"
+        echo "$VERIFY_OUTPUT"
+        exit 1
+    fi
+done
 echo ""
 
 echo "=================================="

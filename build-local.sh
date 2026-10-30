@@ -40,8 +40,10 @@ set_config() {
     local value="$2"
     local line="${key}=${value}"
 
-    if grep -qE "^(${key}=|# ${key} is not set$)" .config; then
-        sed -i -E "s|^(${key}=.*|# ${key} is not set)$|${line}|" .config
+    if grep -q "^$key=" .config; then
+        sed -i "s|^$key=.*|$line|" .config
+    elif grep -q "^# $key is not set$" .config; then
+        sed -i "s|^# $key is not set$|$line|" .config
     else
         printf '%s\n' "$line" >> .config
     fi

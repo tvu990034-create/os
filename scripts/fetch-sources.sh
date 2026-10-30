@@ -4,8 +4,8 @@
 # Usage: ./scripts/fetch-sources.sh [--required-only] [--reference-only] [--all]
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
-MANIFEST="$PROJECT_ROOT/manifests/sources.lock"
+PROJECT_ROOT="${PROJECT_ROOT:-$(dirname "$SCRIPT_DIR")}"
+MANIFEST="${MANIFEST:-$PROJECT_ROOT/manifests/sources.lock}"
 
 FETCH_REQUIRED=true
 FETCH_REFERENCE=false

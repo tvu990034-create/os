@@ -78,14 +78,14 @@ jobs:
     - name: Build Toolchain
       working-directory: openwrt
       run: |
-        make toolchain -j$(nproc)
+        make toolchain/install -j$(nproc) V=s
 
     - name: Build Packages
       working-directory: openwrt
       run: |
-        make package/router-core/compile -j$(nproc) V=s
-        make package/router-net/compile -j$(nproc) V=s
-        make package/router-tests/compile -j$(nproc) V=s
+        make package/feeds/custom-feed/router-core/compile -j$(nproc) V=s
+        make package/feeds/custom-feed/router-net/compile -j$(nproc) V=s
+        make package/feeds/custom-feed/router-tests/compile -j$(nproc) V=s
 
     - name: Build Image
       working-directory: openwrt

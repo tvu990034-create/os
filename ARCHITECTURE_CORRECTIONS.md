@@ -31,7 +31,7 @@
 **Correction:**
 - The current setup creates openwrt/feeds.conf
 - feeds.conf uses src-include defaults feeds.conf.default to retain the pinned upstream package feeds
-- A src-link entry registers the RouterOS custom-feed directory
+- A `src-link routeros /absolute/path/to/custom-feed` entry registers the RouterOS custom-feed directory; the feed identifier uses letters only because OpenWrt feed names are parsed as word characters
 - Existing user-created feeds.conf files are preserved; setup stops and tells the user how to add the custom feed instead of overwriting them
 
 ### 3. Component Dependencies Clarification

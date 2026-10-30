@@ -30,7 +30,7 @@ define Build/Prepare
 	$(INSTALL_DIR) $(PKG_BUILD_DIR)
 	$(CP) ./src/router-dsa-run.c $(PKG_BUILD_DIR)/router-dsa-run.c
 	$(INSTALL_DIR) $(PKG_BUILD_DIR)/include/router-os
-	$(CP) $(TOPDIR)/feeds/custom-feed/router-dsa-sdk/files/include/router-os/dsa.h $(PKG_BUILD_DIR)/include/router-os/dsa.h
+	$(CP) $(TOPDIR)/feeds/routeros/router-dsa-sdk/files/include/router-os/dsa.h $(PKG_BUILD_DIR)/include/router-os/dsa.h
 endef
 
 define Build/Compile

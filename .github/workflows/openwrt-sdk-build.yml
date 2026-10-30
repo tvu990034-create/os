@@ -40,7 +40,7 @@ jobs:
         run: |
           {
             echo "src-include defaults feeds.conf.default"
-            echo "src-link custom-feed $CUSTOM_FEED"
+            echo "src-link routeros $CUSTOM_FEED"
           } > feeds.conf
           ./scripts/feeds update -a
           ./scripts/feeds install router-core
@@ -55,7 +55,7 @@ jobs:
       - name: Compile every custom package
         working-directory: sdk
         run: |
-          make package/feeds/custom-feed/router-core/compile V=s
+          make package/feeds/routeros/router-core/compile V=s
           make package/feeds/custom-feed/router-net/compile V=s
           make package/feeds/custom-feed/router-dsa-sdk/compile V=s
           make package/feeds/custom-feed/router-dsa-runtime/compile V=s

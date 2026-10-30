@@ -21,7 +21,7 @@ The setup script clones the pinned OpenWrt tag when openwrt/ is absent. If an ex
 The script creates openwrt/feeds.conf with:
 
     src-include defaults feeds.conf.default
-    src-link custom-feed /absolute/path/to/os/custom-feed
+    src-link routeros /absolute/path/to/os/custom-feed
 
 This is intentional: OpenWrt's feeds utility reads feeds.conf (or feeds.conf.default when feeds.conf is absent); feeds.conf.local is not the active feeds configuration.
 

@@ -28,7 +28,7 @@ expected_commit=$(git -C "$OPENWRT_DIR" rev-parse "$OPENWRT_REF^{commit}" 2>/dev
 [ "$actual_commit" = "$expected_commit" ] || fail "OpenWrt checkout is not at $OPENWRT_REF (HEAD=$actual_commit). No files were changed; check out the pinned ref and rerun."
 
 FEEDS_CONF="$OPENWRT_DIR/feeds.conf"
-CUSTOM_FEED_LINE="src-link custom-feed $CUSTOM_FEED_DIR"
+CUSTOM_FEED_LINE="src-link routeros $CUSTOM_FEED_DIR"
 
 if [ -f "$FEEDS_CONF" ]; then
 	if ! grep -Fqx "$CUSTOM_FEED_LINE" "$FEEDS_CONF"; then

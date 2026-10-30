@@ -4,8 +4,8 @@
 set -eu
 
 ROOT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-OPENWRT_DIR=\${OPENWRT_DIR:-"$ROOT_DIR/openwrt"}
-OPENWRT_REF=\${OPENWRT_REF:-v25.12.6}
+OPENWRT_DIR=${OPENWRT_DIR:-"$ROOT_DIR/openwrt"}
+OPENWRT_REF=${OPENWRT_REF:-v25.12.6}
 CUSTOM_FEED_DIR="$ROOT_DIR/custom-feed"
 OVERLAY_DIR="$ROOT_DIR/custom/overlay"
 MANIFEST="$OPENWRT_DIR/.routeros-overlay.sha256"

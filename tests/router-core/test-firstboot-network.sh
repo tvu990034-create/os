@@ -49,7 +49,7 @@ CAT
 chmod +x "$TMP_DIR/bin/uci" "$TMP_DIR/bin/logger" "$TMP_DIR/bin/cat"
 
 UCI_LOG="$TMP_DIR/two.log" PATH="$TMP_DIR/bin:$PATH" \
-	ROUTER_CORE_SYS_CLASS_NET="$TMP_DIR/sys-two" "$SCRIPT"
+	ROUTER_CORE_SYS_CLASS_NET="$TMP_DIR/sys-two" sh "$SCRIPT"
 grep -Fq 'add_list network.lan_bridge.ports=eno1' "$TMP_DIR/two.log"
 grep -Fq 'set network.wan.device=eno2' "$TMP_DIR/two.log"
 grep -Fq 'set network.wan6.proto=dhcpv6' "$TMP_DIR/two.log"
@@ -59,7 +59,7 @@ if grep -Fq 'wlan0' "$TMP_DIR/two.log"; then
 fi
 
 UCI_LOG="$TMP_DIR/one.log" PATH="$TMP_DIR/bin:$PATH" \
-	ROUTER_CORE_SYS_CLASS_NET="$TMP_DIR/sys-one" "$SCRIPT"
+	ROUTER_CORE_SYS_CLASS_NET="$TMP_DIR/sys-one" sh "$SCRIPT"
 grep -Fq 'add_list network.lan_bridge.ports=eno1' "$TMP_DIR/one.log"
 if grep -Fq 'set network.wan.device=' "$TMP_DIR/one.log"; then
 	echo "FAIL: a WAN interface was invented on single-NIC hardware" >&2
@@ -67,14 +67,14 @@ if grep -Fq 'set network.wan.device=' "$TMP_DIR/one.log"; then
 fi
 
 EXISTING_WAN=1 UCI_LOG="$TMP_DIR/custom.log" PATH="$TMP_DIR/bin:$PATH" \
-	ROUTER_CORE_SYS_CLASS_NET="$TMP_DIR/sys-custom" "$SCRIPT"
+	ROUTER_CORE_SYS_CLASS_NET="$TMP_DIR/sys-custom" sh "$SCRIPT"
 if grep -Fq 'set network.wan.device=' "$TMP_DIR/custom.log"; then
 	echo "FAIL: existing WAN configuration was overwritten" >&2
 	exit 1
 fi
 
 NO_ULA=1 UCI_LOG="$TMP_DIR/ula.log" PATH="$TMP_DIR/bin:$PATH" \
-	ROUTER_CORE_SYS_CLASS_NET="$TMP_DIR/sys-one" "$SCRIPT"
+	ROUTER_CORE_SYS_CLASS_NET="$TMP_DIR/sys-one" sh "$SCRIPT"
 grep -Fq 'set network.globals.ula_prefix=fd00:1122:3344::/48' "$TMP_DIR/ula.log"
 
 echo "First-boot network assignment and ULA tests passed."

@@ -4,8 +4,8 @@
 set -eu
 
 ROOT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-OPENWRT_DIR=\${OPENWRT_DIR:-"$ROOT_DIR/openwrt"}
-JOBS=\${JOBS:-2}
+OPENWRT_DIR=${OPENWRT_DIR:-"$ROOT_DIR/openwrt"}
+JOBS=${JOBS:-2}
 CONFIG_FILE="$ROOT_DIR/config/x86_64.config"
 
 # This validates the pinned OpenWrt tree, feeds and managed rootfs overlay.

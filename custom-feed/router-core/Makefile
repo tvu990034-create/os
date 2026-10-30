@@ -16,7 +16,7 @@ define Package/router-core
   SECTION:=base
   CATEGORY:=Base system
   TITLE:=RouterOS Core Components
-  DEPENDS:=+procd +uci +ubus +netifd +firewall4 +dnsmasq +odhcpd
+  DEPENDS:=+procd +uci
   DEFAULT:=y if TARGET_x86||TARGET_armsr
 endef
 

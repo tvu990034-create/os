@@ -16,7 +16,7 @@ define Package/router-tests
   SECTION:=utils
   CATEGORY:=Utilities
   TITLE:=RouterOS Runtime Test Suite
-  DEPENDS:=+uci +ip-full +router-core +router-net
+  DEPENDS:=+uci +ip-tiny +router-core +router-net
   DEFAULT:=n
 endef
 

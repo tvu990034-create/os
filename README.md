@@ -31,7 +31,7 @@ setup.sh clones OpenWrt v25.12.6 into the ignored openwrt/ directory when it is 
 - custom-feed/router-dsa-sdk: versioned C ABI header installed at /usr/include/router-os/dsa.h.
 - custom-feed/router-dsa-runtime: router-dsa-run plugin loader/test runner.
 - custom-feed/router-tests: optional on-device smoke tests.
-- custom-feed/router-ui: reserved LuCI integration package; no custom UI is implemented yet.
+- custom-feed/router-ui: read-only LuCI dashboard under Status -> RouterOS.
 - custom/configs: generic, x86 and ARM network templates.
 - config/x86_64.config: reference build configuration.
 - scripts/: build and validation scripts.

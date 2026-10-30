@@ -26,7 +26,7 @@ The foundation must provide a reproducible OpenWrt build entry point, valid cust
 
 - A live packet-processing dataplane that invokes DSA algorithms for forwarded traffic.
 - XDP/eBPF, DPDK, kernel modules or custom kernel patches.
-- A custom LuCI dashboard; router-ui is still a placeholder package.
+- router-ui now installs a read-only LuCI dashboard with system and network-interface status.
 - Full firmware boot validation on QEMU or physical OptiPlex hardware.
 - Throughput, PPS, latency, packet-loss or stability benchmarks.
 - Secure signed firmware updates, rollback and production recovery.

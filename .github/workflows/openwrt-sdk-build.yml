@@ -50,6 +50,7 @@ jobs:
           ./scripts/feeds install router-tests
           ./scripts/feeds install router-ui
           ./scripts/feeds install luci-base
+          ./scripts/feeds install luci-mod-status
           make defconfig
 
       - name: Compile every custom package

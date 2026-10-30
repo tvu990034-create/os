@@ -75,6 +75,26 @@ else
 	fail "first-boot network test is not executable"
 fi
 
+if command -v python3 >/dev/null 2>&1; then
+	if python3 "$ROOT_DIR/scripts/validate-ui.py"; then
+		pass "LuCI dashboard metadata and read-only ACL"
+	else
+		fail "LuCI dashboard metadata and read-only ACL"
+	fi
+else
+	fail "python3 is required for LuCI metadata validation"
+fi
+
+if command -v node >/dev/null 2>&1; then
+	if node --check "$ROOT_DIR/custom-feed/router-ui/files/www/luci-static/resources/view/routeros/overview.js"; then
+		pass "LuCI dashboard JavaScript syntax"
+	else
+		fail "LuCI dashboard JavaScript syntax"
+	fi
+else
+	fail "nodejs is required for LuCI JavaScript validation"
+fi
+
 if [ -x "$ROOT_DIR/tests/dsa-sdk/test-plugin.sh" ]; then
 	if "$ROOT_DIR/tests/dsa-sdk/test-plugin.sh"; then
 		pass "DSA plugin ABI and runner tests"

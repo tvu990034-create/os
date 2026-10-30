@@ -29,7 +29,7 @@ This is intentional: OpenWrt's feeds utility reads feeds.conf (or feeds.conf.def
 
     JOBS=2 ./scripts/build-x86_64.sh
 
-The build script updates the pinned release feeds, installs available packages, applies config/x86_64.config when no local .config exists, runs make defconfig, downloads sources and builds the image.
+The build script updates the pinned release feeds, installs available packages, applies config/x86_64.config when no local .config exists, runs make defconfig, downloads sources and builds the image. The reference profile includes the standard LuCI web interface and the RouterOS read-only Status -> RouterOS dashboard.
 
 You can change JOBS to suit available memory. If a .config already exists, the script preserves it; edit it with make menuconfig rather than deleting it blindly.
 

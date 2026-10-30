@@ -27,8 +27,8 @@ branch = master
 type = required
 purpose = OpenWrt package feed for standard packages
 integration = Managed by OpenWrt feeds system (src-git packages)
-managed_by = OpenWrt (feeds)
-notes = Can be fetched locally or remotely. If local, use pinned commit.
+managed_by = Router OS (pinned)
+notes = Fetched locally at pinned commit for reproducibility
 
 [luci]
 name = LuCI Web Interface
@@ -38,8 +38,8 @@ branch = master
 type = required
 purpose = OpenWrt web interface
 integration = Managed by OpenWrt feeds system (src-git luci)
-managed_by = OpenWrt (feeds)
-notes = Can be fetched locally or remotely. If local, use pinned commit.
+managed_by = Router OS (pinned)
+notes = Fetched locally at pinned commit for reproducibility
 
 [routing]
 name = OpenWrt Routing Feed
@@ -49,8 +49,8 @@ branch = master
 type = required
 purpose = OpenWrt routing packages (bird, quagga, etc.)
 integration = Managed by OpenWrt feeds system (src-git routing)
-managed_by = OpenWrt (feeds)
-notes = Can be fetched locally or remotely. If local, use pinned commit.
+managed_by = Router OS (pinned)
+notes = Fetched locally at pinned commit for reproducibility
 
 [linux]
 name = Linux Kernel (Reference)

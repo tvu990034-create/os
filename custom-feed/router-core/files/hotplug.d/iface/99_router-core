@@ -1,0 +1,13 @@
+#!/bin/sh
+# Router OS Interface Hotplug Script
+# Runs when network interfaces change
+
+[ "$ACTION" = "ifup" ] || exit 0
+
+# Log interface up event
+logger -t router-core "Interface $DEVICE came up on protocol $PROTO"
+
+# Additional interface-specific logic can be added here
+# For example: trigger hardware detection, update statistics, etc.
+
+exit 0

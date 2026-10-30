@@ -19,7 +19,7 @@ define Package/router-core
   SECTION:=base
   CATEGORY:=Base system
   TITLE:=Router OS Core Components
-  DEPENDS:=+procd +uci +ubus
+  DEPENDS:=+procd +uci +ubus +netifd +firewall4 +kmod-nft-core +dnsmasq +odhcpd
   DEFAULT:=y if TARGET_x86||TARGET_armsr
 endef
 
@@ -37,6 +37,14 @@ define Package/router-core/install
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_DIR) $(1)/usr/libexec/router-core
 	$(INSTALL_DIR) $(1)/etc/config
+	$(INSTALL_DIR) $(1)/etc/hotplug.d/iface
+	$(INSTALL_DIR) $(1)/etc/hotplug.d/net
+	$(INSTALL_CONF) ./files/uci-defaults/* $(1)/etc/uci-defaults/
+	$(INSTALL_BIN) ./files/init.d/* $(1)/etc/init.d/
+	$(INSTALL_BIN) ./files/libexec/* $(1)/usr/libexec/router-core/
+	$(INSTALL_CONF) ./files/config/* $(1)/etc/config/
+	$(INSTALL_BIN) ./files/hotplug.d/iface/* $(1)/etc/hotplug.d/iface/
+	$(INSTALL_BIN) ./files/hotplug.d/net/* $(1)/etc/hotplug.d/net/
 endef
 
 $(eval $(call BuildPackage,router-core))

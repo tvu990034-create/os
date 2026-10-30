@@ -32,7 +32,9 @@ router-os-source/
 ## Custom Components
 
 ### custom/
-Custom build configuration and documentation for Router OS. This directory should be copied to `openwrt/custom/` before building.
+Custom build configuration and documentation for Router OS.
+- This directory should be copied to `openwrt/custom/` before building
+- Feed configuration is generated during setup (see below)
 
 ### custom-feed/
 Custom Router OS packages:
@@ -58,11 +60,12 @@ git clone https://github.com/u-boot/u-boot.git
 git clone https://github.com/coreboot/coreboot.git
 ```
 
-2. Copy custom files to openwrt/:
+2. Run setup script:
 ```bash
-cp -r custom/* openwrt/custom/
-cp custom/feeds.conf.local openwrt/feeds.conf.local
+./setup.sh
 ```
+
+This script copies custom configuration to openwrt/ and generates feeds.conf.local.
 
 3. Set up build environment (Linux/WSL2 required):
 ```bash

@@ -1,0 +1,47 @@
+#!/bin/sh
+# Router OS Hardware Detection Script
+# Detects network interfaces and system hardware
+
+detect_network_interfaces() {
+	echo "Detecting network interfaces..."
+	ls -la /sys/class/net/ 2>/dev/null || echo "No network interfaces found"
+	echo ""
+}
+
+detect_pci_devices() {
+	echo "Detecting PCI devices..."
+	if command -v lspci >/dev/null 2>&1; then
+		lspci 2>/dev/null || echo "lspci failed or no PCI devices"
+	else
+		echo "lspci not available"
+	fi
+	echo ""
+}
+
+detect_cpu_info() {
+	echo "CPU Information:"
+	grep -E 'model name|cpu cores|processor' /proc/cpuinfo | head -5
+	echo ""
+}
+
+detect_memory_info() {
+	echo "Memory Information:"
+	free -h 2>/dev/null || cat /proc/meminfo | head -5
+	echo ""
+}
+
+main() {
+	echo "=== Router OS Hardware Detection ==="
+	echo ""
+	detect_network_interfaces
+	echo ""
+	detect_pci_devices
+	echo ""
+	detect_cpu_info
+	echo ""
+	detect_memory_info
+	echo ""
+	echo "=== Detection Complete ==="
+}
+
+main "$@"

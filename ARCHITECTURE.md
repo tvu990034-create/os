@@ -88,45 +88,49 @@ openwrt/
 
 ```
 F:\router-os-source\
-├── openwrt/              # OpenWrt build system (primary working directory)
-│   ├── feeds.conf.local  # Custom feed configuration (LOCAL)
-│   ├── custom/           # Custom Router OS code (NEW)
-│   │   ├── build/        # Custom build configuration
-│   │   │   ├── config/   # Kconfig fragments for custom options
-│   │   │   └── patches/  # Custom patches to OpenWrt
-│   │   ├── configs/      # Pre-built configuration templates
-│   │   │   ├── generic/  # Generic hardware configs
-│   │   │   ├── x86/      # x86-specific configs
-│   │   │   └── armsr/    # ARM-specific configs
-│   │   ├── kernel/       # Custom kernel modules/patches
-│   │   │   ├── patches/  # Kernel patches
-│   │   │   └── modules/  # Custom kernel modules
-│   │   └── docs/         # Architecture documentation
-│   └── package/feeds/     # Feed packages (symlinks created by feeds script)
-├── custom-feed/          # Custom package feed (NEW)
+├── custom/               # Custom Router OS code (tracked in git)
+│   ├── build/            # Custom build configuration
+│   │   ├── config/       # Kconfig fragments for custom options
+│   │   └── patches/      # Custom patches to OpenWrt
+│   ├── configs/          # Pre-built configuration templates
+│   │   ├── generic/      # Generic hardware configs
+│   │   ├── x86/          # x86-specific configs
+│   │   └── armsr/        # ARM-specific configs
+│   ├── kernel/           # Custom kernel modules/patches
+│   │   ├── patches/      # Kernel patches
+│   │   └── modules/      # Custom kernel modules
+│   ├── docs/             # Architecture documentation
+│   └── feeds.conf.local  # Feed configuration template
+├── custom-feed/          # Custom package feed (tracked in git)
 │   ├── router-core/      # Core router functionality
 │   ├── router-net/       # Networking extensions
 │   ├── router-ui/        # LuCI customizations
 │   └── router-tests/     # Automated tests
-├── linux/                # Linux kernel reference (unchanged)
-├── luci/                 # LuCI feed reference (unchanged)
-├── packages/             # OpenWrt packages feed reference (unchanged)
-├── routing/              # Routing feed reference (unchanged)
-├── iproute2/             # Network utilities reference (unchanged)
-├── dpdk/                 # DPDK reference (unchanged)
-├── xdp-tutorial/         # XDP reference (unchanged)
-├── buildroot/            # Buildroot reference (unchanged)
-├── u-boot/               # U-Boot reference (unchanged)
-├── coreboot/             # Coreboot reference (unchanged)
+├── openwrt/              # OpenWrt build system (external git repo)
+│   ├── custom/           # [COPY] Custom code copied here during build
+│   ├── feeds.conf.local  # [COPY] Feed config copied here during build
+│   └── package/feeds/    # Feed packages (symlinks created by feeds script)
+├── linux/                # Linux kernel reference (external git repo)
+├── luci/                 # LuCI feed reference (external git repo)
+├── packages/             # OpenWrt packages feed reference (external git repo)
+├── routing/              # Routing feed reference (external git repo)
+├── iproute2/             # Network utilities reference (external git repo)
+├── dpdk/                 # DPDK reference (external git repo)
+├── xdp-tutorial/         # XDP reference (external git repo)
+├── buildroot/            # Buildroot reference (external git repo)
+├── u-boot/               # U-Boot reference (external git repo)
+├── coreboot/             # Coreboot reference (external git repo)
 └── ARCHITECTURE.md       # This document
 ```
 
-**Key Corrections:**
-- Build work happens inside `openwrt/` directory
-- Custom code is in `openwrt/custom/` for build integration
-- Custom packages are in separate `custom-feed/` directory (feed structure)
-- Feeds are referenced via `src-link` in `feeds.conf.local`
-- No submodules - use existing repository structure
+**Build Workflow:**
+1. `custom/` and `custom-feed/` are tracked in this repository
+2. Before building, copy `custom/*` to `openwrt/custom/`
+3. Copy `custom/feeds.conf.local` to `openwrt/feeds.conf.local`
+4. Build work happens inside `openwrt/` directory
+5. Custom packages are in separate `custom-feed/` directory (feed structure)
+6. Feeds are referenced via `src-link` in `feeds.conf.local`
+7. No submodules - use existing repository structure
 
 ### Component Architecture
 

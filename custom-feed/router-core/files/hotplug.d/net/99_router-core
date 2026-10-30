@@ -1,0 +1,15 @@
+#!/bin/sh
+# Router OS Network Device Hotplug Script
+# Runs when network devices are added or removed
+
+case "$ACTION" in
+	add)
+		logger -t router-core "Network device $DEVNAME added"
+		# Could trigger interface configuration here
+		;;
+	remove)
+		logger -t router-core "Network device $DEVNAME removed"
+		;;
+esac
+
+exit 0

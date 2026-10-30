@@ -1,0 +1,16 @@
+#!/bin/sh
+# Router OS UCI Defaults
+# This script runs on first boot to configure Router OS defaults
+
+# Enable SSH on LAN
+uci dropbear.@dropbear[0].Interface='lan'
+uci commit dropbear
+
+# Enable HTTP server on LAN
+uci set uhttpd.main.listen_http='80'
+uci set uhttpd.main.listen_https='443'
+uci set uhttpd.main.home='/www'
+uci set uhttpd.main.rfc1918_filter='1'
+uci commit uhttpd
+
+exit 0

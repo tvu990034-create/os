@@ -205,7 +205,13 @@ parse_and_fetch() {
     local current_type=""
     local current_required="false"
     local current_ignore=""
-    
+    local section_name=""
+
+    if [ ! -f "$MANIFEST" ]; then
+        echo "ERROR: Manifest file not found: $MANIFEST"
+        return 1
+    fi
+
     while IFS= read -r line || [ -n "$line" ]; do
         # Skip comments and empty lines
         if [[ "$line" =~ ^# ]] || [[ -z "$line" ]]; then
@@ -214,13 +220,15 @@ parse_and_fetch() {
         
         # Parse sections
         if [[ "$line" =~ ^\[([^\]]+)\] ]]; then
+            # Save the section name before helper calls can overwrite BASH_REMATCH.
+            section_name="${BASH_REMATCH[1]}"
             # Process previous repo if exists
             if [ -n "$current_repo" ]; then
-                fetch_repo "$current_repo" "$current_url" "$current_commit" "$current_type" "$current_required" "$current_ignore"
+                fetch_repo "$current_repo" "$current_url" "$current_commit" "$current_type" "$current_required" "$current_ignore" || return 1
             fi
             
             # Start new repo
-            current_repo="${BASH_REMATCH[1]}"
+            current_repo="$section_name"
             current_url=""
             current_commit=""
             current_type=""
@@ -241,12 +249,12 @@ parse_and_fetch() {
     
     # Process last repo
     if [ -n "$current_repo" ]; then
-        fetch_repo "$current_repo" "$current_url" "$current_commit" "$current_type" "$current_required" "$current_ignore"
+        fetch_repo "$current_repo" "$current_url" "$current_commit" "$current_type" "$current_required" "$current_ignore" || return 1
     fi
 }
 
-# Run the main function
-parse_and_fetch
+# Run the main function and propagate any repository failure.
+parse_and_fetch || exit 1
 
 echo "==========================="
 echo "Source fetch complete"

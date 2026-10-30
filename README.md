@@ -2,6 +2,8 @@
 
 A custom router operating system based on OpenWrt + Linux.
 
+**Repository**: https://github.com/tvu990034-create/os
+
 ## Project Structure
 
 ```

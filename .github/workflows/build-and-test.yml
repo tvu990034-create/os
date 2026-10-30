@@ -41,6 +41,10 @@ jobs:
         ./setup.sh
         mkdir -p openwrt/logs
 
+    - name: Run Source Management Regression Tests
+      run: |
+        ./scripts/test-source-management.sh
+
     - name: Update Feeds
       working-directory: openwrt
       run: |

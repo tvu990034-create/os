@@ -2,15 +2,39 @@
 # Router OS UCI Defaults
 # This script runs on first boot to configure Router OS defaults
 
-# Enable SSH on LAN
-uci dropbear.@dropbear[0].Interface='lan'
-uci commit dropbear
+# Ensure SSH is enabled and listening on LAN
+if uci get dropbear.@dropbear[0] >/dev/null 2>&1; then
+	uci set dropbear.@dropbear[0].Interface='lan'
+	uci set dropbear.@dropbear[0].PasswordAuth='on'
+	uci set dropbear.@dropbear[0].RootPasswordAuth='on'
+	uci commit dropbear
+else
+	logger -t router-core "Warning: dropbear configuration not found"
+fi
 
-# Enable HTTP server on LAN
-uci set uhttpd.main.listen_http='80'
-uci set uhttpd.main.listen_https='443'
-uci set uhttpd.main.home='/www'
-uci set uhttpd.main.rfc1918_filter='1'
-uci commit uhttpd
+# Configure HTTP server for LuCI
+if uci get uhttpd.main >/dev/null 2>&1; then
+	uci set uhttpd.main.listen_http='80'
+	uci set uhttpd.main.listen_https='443'
+	uci set uhttpd.main.home='/www'
+	uci set uhttpd.main.rfc1918_filter='1'
+	uci commit uhttpd
+else
+	logger -t router-core "Warning: uhttpd configuration not found"
+fi
+
+# Enable system logging
+if uci get system.@system[0] >/dev/null 2>&1; then
+	uci set system.@system[0].log_size='64'
+	uci set system.@system[0].log_type='circular'
+	uci set system.@system[0].conloglevel='7'
+	uci set system.@system[0].cronloglevel='5'
+	uci commit system
+else
+	logger -t router-core "Warning: system configuration not found"
+fi
+
+# Log that defaults were applied
+logger -t router-core "Router OS UCI defaults applied"
 
 exit 0

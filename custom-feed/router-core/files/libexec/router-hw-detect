@@ -3,13 +3,32 @@
 # Detects network interfaces and system hardware
 
 detect_network_interfaces() {
-	echo "Detecting network interfaces..."
-	ls -la /sys/class/net/ 2>/dev/null || echo "No network interfaces found"
-	echo ""
+	echo "=== Network Interfaces ==="
+	if [ -d /sys/class/net ]; then
+		for iface in /sys/class/net/*; do
+			ifname=$(basename "$iface")
+			echo "Interface: $ifname"
+			if [ -e "$iface/address" ]; then
+				mac=$(cat "$iface/address" 2>/dev/null)
+				echo "  MAC: $mac"
+			fi
+			if [ -e "$iface/operstate" ]; then
+				state=$(cat "$iface/operstate" 2>/dev/null)
+				echo "  State: $state"
+			fi
+			if [ -e "$iface/speed" ]; then
+				speed=$(cat "$iface/speed" 2>/dev/null)
+				echo "  Speed: ${speed}Mb/s"
+			fi
+			echo ""
+		done
+	else
+		echo "No network interfaces found in /sys/class/net/"
+	fi
 }
 
 detect_pci_devices() {
-	echo "Detecting PCI devices..."
+	echo "=== PCI Devices ==="
 	if command -v lspci >/dev/null 2>&1; then
 		lspci 2>/dev/null || echo "lspci failed or no PCI devices"
 	else
@@ -19,29 +38,69 @@ detect_pci_devices() {
 }
 
 detect_cpu_info() {
-	echo "CPU Information:"
-	grep -E 'model name|cpu cores|processor' /proc/cpuinfo | head -5
+	echo "=== CPU Information ==="
+	if [ -f /proc/cpuinfo ]; then
+		grep -E 'model name|cpu cores|processor|Hardware' /proc/cpuinfo | head -10
+	else
+		echo "/proc/cpuinfo not available"
+	fi
 	echo ""
 }
 
 detect_memory_info() {
-	echo "Memory Information:"
-	free -h 2>/dev/null || cat /proc/meminfo | head -5
+	echo "=== Memory Information ==="
+	if command -v free >/dev/null 2>&1; then
+		free -h 2>/dev/null || echo "free command failed"
+	elif [ -f /proc/meminfo ]; then
+		head -5 /proc/meminfo
+	else
+		echo "Memory information not available"
+	fi
+	echo ""
+}
+
+detect_storage_info() {
+	echo "=== Storage Information ==="
+	if [ -d /sys/block ]; then
+		for block in /sys/block/*; do
+			bdev=$(basename "$block")
+			echo "Block device: $bdev"
+			if [ -e "$block/size" ]; then
+				size=$(cat "$block/size" 2>/dev/null)
+				sectors_to_mb=$((size / 2048))
+				echo "  Size: ${sectors_to_mb}MB"
+			fi
+			echo ""
+		done
+	else
+		echo "No block devices found"
+	fi
+}
+
+detect_architecture() {
+	echo "=== System Architecture ==="
+	if command -v uname >/dev/null 2>&1; then
+		uname -a
+	else
+		echo "uname command not available"
+	fi
 	echo ""
 }
 
 main() {
-	echo "=== Router OS Hardware Detection ==="
+	echo "======================================"
+	echo "Router OS Hardware Detection"
+	echo "======================================"
 	echo ""
+	detect_architecture
 	detect_network_interfaces
-	echo ""
 	detect_pci_devices
-	echo ""
 	detect_cpu_info
-	echo ""
 	detect_memory_info
-	echo ""
-	echo "=== Detection Complete ==="
+	detect_storage_info
+	echo "======================================"
+	echo "Detection Complete"
+	echo "======================================"
 }
 
 main "$@"

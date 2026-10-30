@@ -19,22 +19,22 @@ define Package/router-tests
   SECTION:=utils
   CATEGORY:=Utilities
   TITLE:=Router OS Test Suite
-  DEPENDS:=+bash +iperf3 +tcpdump
+  DEPENDS:=+bash +coreutils +iproute2 +kmod-nft-core
   DEFAULT:=n
 endef
 
 define Package/router-tests/description
-  Automated test suite for Router OS including unit tests,
-  integration tests, and performance benchmarking tools.
+  Automated test suite for Router OS including configuration validation,
+  hardware detection, and network functionality tests.
 endef
 
 define Build/Compile
-	# No compilation needed for this package skeleton
+	# No compilation needed
 endef
 
 define Package/router-tests/install
 	$(INSTALL_DIR) $(1)/usr/libexec/router-tests
-	$(INSTALL_DIR) $(1)/usr/bin
+	$(INSTALL_BIN) ./files/*.sh $(1)/usr/libexec/router-tests/
 endef
 
 $(eval $(call BuildPackage,router-tests))

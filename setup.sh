@@ -15,8 +15,15 @@ if [ ! -d "openwrt" ]; then
     exit 1
 fi
 
+# Check if custom-feed directory exists
+if [ ! -d "custom-feed" ]; then
+    echo "Error: custom-feed directory not found."
+    exit 1
+fi
+
 # Copy custom directory to openwrt
 echo "Copying custom configuration to openwrt/custom/..."
+mkdir -p openwrt/custom
 cp -r custom/* openwrt/custom/
 
 # Generate feeds.conf.local
@@ -47,5 +54,7 @@ echo "Next steps:"
 echo "  cd openwrt"
 echo "  ./scripts/feeds update custom-feed"
 echo "  ./scripts/feeds install router-core"
+echo "  ./scripts/feeds install router-net"
+echo "  ./scripts/feeds install router-tests"
 echo "  make menuconfig"
 echo "  make"

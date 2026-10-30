@@ -19,22 +19,25 @@ define Package/router-net
   SECTION:=net
   CATEGORY:=Network
   TITLE:=Router OS Networking Extensions
-  DEPENDS:=+netifd +firewall4 +kmod-nft-core
+  DEPENDS:=+netifd +firewall4 +kmod-nft-core +iproute2
   DEFAULT:=n
 endef
 
 define Package/router-net/description
   Networking extensions for Router OS including monitoring framework
   and interfaces for future packet processing optimizations.
+  This package provides modular integration points for future DSA implementations.
 endef
 
 define Build/Compile
-	# No compilation needed for this package skeleton
+	# No compilation needed - shell scripts only
 endef
 
 define Package/router-net/install
 	$(INSTALL_DIR) $(1)/usr/libexec/router-net
 	$(INSTALL_DIR) $(1)/etc/config
+	$(INSTALL_BIN) ./files/*.sh $(1)/usr/libexec/router-net/ 2>/dev/null || true
+	$(INSTALL_CONF) ./files/config/* $(1)/etc/config/ 2>/dev/null || true
 endef
 
 $(eval $(call BuildPackage,router-net))

@@ -1,0 +1,24 @@
+# Router OS Networking Extensions Configuration
+# This configuration is for future DSA integration points
+
+config monitor
+	option enabled '1'
+	option interval '10'
+	option recovery_delay '5'
+
+# Future: Packet processing algorithm integration
+# When DSA algorithms are implemented, they will be configured here
+# config packet_processor
+# 	option enabled '0'
+# 	option algorithm 'custom'
+# 	option priority '100'
+
+# Future: Routing algorithm integration
+# config routing_algorithm
+# 	option enabled '0'
+# 	option type 'none'
+
+# Future: Traffic scheduling
+# config traffic_scheduler
+# 	option enabled '0'
+# 	option algorithm 'none'

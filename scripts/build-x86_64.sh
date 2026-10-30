@@ -4,16 +4,15 @@
 set -eu
 
 ROOT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-OPENWRT_DIR=${OPENWRT_DIR:-"$ROOT_DIR/openwrt"}
-JOBS=${JOBS:-2}
+OPENWRT_DIR=\${OPENWRT_DIR:-"$ROOT_DIR/openwrt"}
+JOBS=\${JOBS:-2}
 CONFIG_FILE="$ROOT_DIR/config/x86_64.config"
 
-if [ ! -d "$OPENWRT_DIR" ]; then
-	"$ROOT_DIR/setup.sh"
-fi
+# This validates the pinned OpenWrt tree, feeds and managed rootfs overlay.
+OPENWRT_DIR="$OPENWRT_DIR" "$ROOT_DIR/setup.sh"
 
 [ -x "$OPENWRT_DIR/scripts/feeds" ] || {
-	echo "OpenWrt build tree is missing scripts/feeds; run setup.sh first." >&2
+	echo "OpenWrt build tree is missing scripts/feeds." >&2
 	exit 1
 }
 

@@ -10,7 +10,9 @@ The foundation must provide a reproducible OpenWrt build entry point, valid cust
 
 - OpenWrt v25.12.6 is the default pinned source release.
 - setup.sh clones or checks the pinned OpenWrt source and creates the active feeds.conf. It includes the release's feeds.conf.default and adds the custom feed without replacing upstream feed pins.
-- router-core uses syntactically valid UCI network/firewall configuration and discovers physical wired NICs on first boot instead of hard-coding eth0/eth1.
+- The four RouterOS UCI defaults are installed through OpenWrt's standard rootfs `files/` overlay; router-core no longer claims files owned by base-files, dnsmasq or firewall packages.
+- The overlay sync is hash-tracked and refuses to overwrite local modifications.
+- router-core discovers physical wired NICs on first boot instead of hard-coding eth0/eth1.
 - The default firewall rejects unsolicited WAN input; no default WAN ping exception is opened.
 - SSH/uhttpd defaults are not forcibly changed by router-core; an unset root password is not converted into a password-authentication policy.
 - router-core hardware inventory and startup diagnostics are read-only.

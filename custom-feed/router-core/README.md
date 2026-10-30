@@ -10,7 +10,7 @@ Core RouterOS package for first-boot defaults, hardware inventory and startup di
 - Additional detected wired NICs are placed on the LAN bridge.
 - A one-NIC device is configured as LAN-only. A separate WAN NIC must be added for routed WAN/LAN separation.
 
-The network defaults are applied once by OpenWrt's UCI defaults mechanism. A non-stock user-defined network layout is not rewritten.
+The static UCI files are installed through `custom/overlay/etc/config/` and OpenWrt's rootfs overlay. `setup.sh` syncs them to `openwrt/files/etc/config/` and tracks their hashes. The first-boot UCI defaults only attaches detected NICs to the stock `br-lan` bridge and preserves an existing WAN setup.
 
 ## Firewall
 

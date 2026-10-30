@@ -9,10 +9,10 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 CONFIGS = [
-    "custom-feed/router-core/files/config/network",
-    "custom-feed/router-core/files/config/firewall",
-    "custom-feed/router-core/files/config/dhcp",
-    "custom-feed/router-core/files/config/system",
+    "custom/overlay/etc/config/network",
+    "custom/overlay/etc/config/firewall",
+    "custom/overlay/etc/config/dhcp",
+    "custom/overlay/etc/config/system",
     "custom-feed/router-net/files/config/router-net",
     "custom/configs/generic/network.conf",
     "custom/configs/x86/network.conf",

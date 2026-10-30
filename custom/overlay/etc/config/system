@@ -1,0 +1,14 @@
+config system
+	option hostname 'RouterOS'
+	option timezone 'ICT-7'
+	option zonename 'Asia/Bangkok'
+	option log_size '64'
+	option log_type 'circular'
+	option conloglevel '7'
+	option cronloglevel '5'
+
+config timeserver 'ntp'
+	option enabled '1'
+	option enable_server '0'
+	list server '0.openwrt.pool.ntp.org'
+	list server '1.openwrt.pool.ntp.org'

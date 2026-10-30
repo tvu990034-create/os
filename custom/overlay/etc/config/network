@@ -1,0 +1,21 @@
+config interface 'loopback'
+	option device 'lo'
+	option proto 'static'
+	option ipaddr '127.0.0.1'
+	option netmask '255.0.0.0'
+
+config globals 'globals'
+	option packet_steering '1'
+
+# Physical Ethernet ports are discovered on first boot. The first wired NIC
+# is assigned to LAN and the second, when present, is assigned to WAN.
+config device 'lan_bridge'
+	option name 'br-lan'
+	option type 'bridge'
+
+config interface 'lan'
+	option device 'br-lan'
+	option proto 'static'
+	option ipaddr '192.168.1.1'
+	option netmask '255.255.255.0'
+	option ip6assign '60'

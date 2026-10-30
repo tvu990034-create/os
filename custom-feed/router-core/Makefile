@@ -6,7 +6,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=router-core
-PKG_RELEASE:=3
+PKG_RELEASE:=4
 PKG_LICENSE:=GPL-2.0-only
 PKG_MAINTAINER:=Router OS Project
 
@@ -22,29 +22,19 @@ endef
 
 define Package/router-core/description
  RouterOS first-boot network defaults, hardware inventory and startup diagnostics.
-endef
-
-define Package/router-core/conffiles
-/etc/config/network
-/etc/config/firewall
-/etc/config/dhcp
-/etc/config/system
+ Network and system configuration are installed as a rootfs overlay to avoid
+ package file ownership conflicts with OpenWrt base and service packages.
 endef
 
 define Build/Compile
 endef
 
 define Package/router-core/install
-	$(INSTALL_DIR) $(1)/etc/config
 	$(INSTALL_DIR) $(1)/etc/uci-defaults
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_DIR) $(1)/etc/hotplug.d/iface
 	$(INSTALL_DIR) $(1)/etc/hotplug.d/net
 	$(INSTALL_DIR) $(1)/usr/libexec/router-core
-	$(INSTALL_CONF) ./files/config/network $(1)/etc/config/network
-	$(INSTALL_CONF) ./files/config/firewall $(1)/etc/config/firewall
-	$(INSTALL_CONF) ./files/config/dhcp $(1)/etc/config/dhcp
-	$(INSTALL_CONF) ./files/config/system $(1)/etc/config/system
 	$(INSTALL_BIN) ./files/uci-defaults/99_router-core $(1)/etc/uci-defaults/99_router-core
 	$(INSTALL_BIN) ./files/init.d/router-core $(1)/etc/init.d/router-core
 	$(INSTALL_BIN) ./files/libexec/router-hw-detect $(1)/usr/libexec/router-core/router-hw-detect

@@ -22,7 +22,7 @@ Run the following from a Linux filesystem path (for example, ~/src), not from /m
     ./setup.sh
     JOBS=2 ./scripts/build-x86_64.sh
 
-setup.sh clones OpenWrt v25.12.6 into the ignored openwrt/ directory when it is absent. It creates OpenWrt's active feeds.conf by including the release's pinned feeds.conf.default and registering this repository's custom feed.
+setup.sh clones OpenWrt v25.12.6 into the ignored openwrt/ directory when it is absent. It creates OpenWrt's active feeds.conf and syncs the tracked RouterOS configuration into openwrt/files/. The sync is hash-tracked and refuses to overwrite local edits.
 
 ## Repository layout
 

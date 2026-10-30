@@ -21,7 +21,7 @@ jobs:
       - name: Install host validation tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential python3 nodejs
+          sudo apt-get install -y build-essential python3 nodejs nodejs
 
       - name: Validate source, shell and UCI configuration
         run: ./validate-packages.sh

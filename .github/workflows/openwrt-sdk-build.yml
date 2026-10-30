@@ -57,17 +57,19 @@ jobs:
         working-directory: sdk
         run: |
           make package/feeds/routeros/router-core/compile V=s
-          make package/feeds/custom-feed/router-net/compile V=s
-          make package/feeds/custom-feed/router-dsa-sdk/compile V=s
-          make package/feeds/custom-feed/router-dsa-runtime/compile V=s
-          make package/feeds/custom-feed/router-tests/compile V=s
-          make package/feeds/custom-feed/router-ui/compile V=s
+          make package/feeds/routeros/router-net/compile V=s
+          make package/feeds/routeros/router-dsa-sdk/compile V=s
+          make package/feeds/routeros/router-dsa-runtime/compile V=s
+          make package/feeds/routeros/router-tests/compile V=s
+          make package/feeds/routeros/router-ui/compile V=s
 
       - name: Upload custom package artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: routeros-x86_64-ipk-packages
-          path: sdk/bin/packages/x86_64/
+          path: |
+            sdk/bin/packages/x86_64/
+            sdk/bin/targets/x86/64/packages/
           if-no-files-found: warn
           retention-days: 7

@@ -46,7 +46,8 @@ for script in \
 	"$ROOT_DIR/custom-feed/router-tests/files/test-hardware-detect.sh" \
 	"$ROOT_DIR/custom-feed/router-tests/files/test-network-validation.sh" \
 	"$ROOT_DIR/tests/dsa-sdk/test-plugin.sh" \
-	"$ROOT_DIR/tests/router-core/test-firstboot-network.sh"; do
+	"$ROOT_DIR/tests/router-core/test-firstboot-network.sh" \
+	"$ROOT_DIR/tests/setup/test-setup-overlay.sh"; do
 	if [ -f "$script" ] && sh -n "$script"; then
 		relative_path=${script#"$ROOT_DIR"/}
 		pass "shell syntax: $relative_path"
@@ -63,6 +64,16 @@ if command -v python3 >/dev/null 2>&1; then
 	fi
 else
 	fail "python3 is required for UCI validation"
+fi
+
+if [ -x "$ROOT_DIR/tests/setup/test-setup-overlay.sh" ]; then
+	if "$ROOT_DIR/tests/setup/test-setup-overlay.sh"; then
+		pass "rootfs overlay synchronization and conflict protection"
+	else
+		fail "rootfs overlay synchronization and conflict protection"
+	fi
+else
+	fail "rootfs overlay setup test is not executable"
 fi
 
 if [ -x "$ROOT_DIR/tests/router-core/test-firstboot-network.sh" ]; then

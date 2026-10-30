@@ -74,11 +74,12 @@ cat > "$TEST_MANIFEST" << 'EOF'
 [test-repo]
 url = https://github.com/openwrt/openwrt.git
 commit = ca454c00b69fc684e1c5ea52f62733c4e644e799
-type = required
+type = reference
+required = false
 EOF
 
-# This should not fail on parsing
-if "$PROJECT_ROOT/scripts/verify-sources.sh" --required-only 2>&1 | grep -q "Skipping"; then
+# The reference-only test repository should be skipped by --required-only.
+if MANIFEST="$TEST_MANIFEST" "$PROJECT_ROOT/scripts/verify-sources.sh" --required-only 2>&1 | grep -q "Skipping: test-repo"; then
     echo "✓ Manifest parsed correctly"
 else
     echo "✗ Manifest parsing failed"

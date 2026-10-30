@@ -13,7 +13,7 @@ The foundation must provide a reproducible OpenWrt build entry point, valid cust
 - The four RouterOS UCI defaults are installed through OpenWrt's standard rootfs `files/` overlay; router-core no longer claims files owned by base-files, dnsmasq or firewall packages.
 - The overlay sync is hash-tracked and refuses to overwrite local modifications.
 - router-core discovers physical wired NICs on first boot instead of hard-coding eth0/eth1.
-- WAN input and forwarding default to REJECT. Explicit DHCPv6 and MLD rules are present, and essential ICMPv6 input/forwarding is rate-limited; this includes echo-request, so IPv6 ping from WAN is allowed within that limit.
+- WAN input and forwarding default to REJECT. Explicit DHCPv6 and MLD rules are present. Essential ICMPv6 input and forwarding error messages are rate-limited; echo-request is permitted only to the router itself, not forwarded into the LAN.
 - SSH/uhttpd defaults are not forcibly changed by router-core; an unset root password is not converted into a password-authentication policy.
 - router-core hardware inventory and startup diagnostics are read-only.
 - router-net's observer is opt-in and never runs ifup/ifdown or changes interface configuration.

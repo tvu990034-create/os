@@ -3,7 +3,7 @@
 ## Current OpenWrt Revision
 
 **Commit**: ca454c0
-**Repository**: https://github.com/openwrt/openwrt.git
+**Repository**: https://github.com/openwrt/openwrt
 **Date Pinned**: 2026-10-30
 
 ## How to Update OpenWrt Revision

@@ -9,7 +9,7 @@ on:
 
 env:
   OPENWRT_COMMIT: ca454c0
-  OPENWRT_REPO: https://github.com/openwrt/openwrt
+  OPENWRT_REPO: https://github.com/openwrt/openwrt.git
 
 jobs:
   build:

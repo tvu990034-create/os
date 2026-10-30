@@ -3,7 +3,7 @@
 set -e
 
 OPENWRT_COMMIT="${OPENWRT_COMMIT:-ca454c0}"
-OPENWRT_REPO="${OPENWRT_REPO:-https://github.com/openwrt/openwrt}"
+OPENWRT_REPO="${OPENWRT_REPO:-https://github.com/openwrt/openwrt.git}"
 JOBS="${JOBS:-$(nproc)}"
 
 echo "Router OS Reproducible Build"

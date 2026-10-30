@@ -36,7 +36,7 @@ if [ -f "$FEEDS_CONF" ]; then
 	fi
 else
 	{
-		printf '%s\n' 'include feeds.conf.default'
+		printf '%s\n' 'src-include defaults feeds.conf.default'
 		printf '%s\n' "$CUSTOM_FEED_LINE"
 	} > "$FEEDS_CONF"
 fi

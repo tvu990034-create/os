@@ -39,7 +39,7 @@ jobs:
           CUSTOM_FEED: ${{ github.workspace }}/custom-feed
         run: |
           {
-            echo "include feeds.conf.default"
+            echo "src-include defaults feeds.conf.default"
             echo "src-link custom-feed $CUSTOM_FEED"
           } > feeds.conf
           ./scripts/feeds update -a

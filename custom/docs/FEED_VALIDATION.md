@@ -1,6 +1,6 @@
 # Feed integration
 
-The setup script creates OpenWrt's active feeds.conf file (not feeds.conf.local). It includes the pinned release's feeds.conf.default and appends one local feed entry for this repository's custom-feed directory.
+The setup script creates OpenWrt's active feeds.conf file (not feeds.conf.local). It uses the OpenWrt src-include directive to load the pinned release's feeds.conf.default and appends one local feed entry for this repository's custom-feed directory.
 
 The OpenWrt feeds utility reads feeds.conf when present and otherwise falls back to feeds.conf.default. The generated file therefore preserves the exact package, LuCI, routing, telephony and video feed revisions selected by the pinned OpenWrt release.
 

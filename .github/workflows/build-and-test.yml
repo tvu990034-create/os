@@ -14,7 +14,7 @@ env:
 jobs:
   build:
     runs-on: ubuntu-22.04
-    
+
     steps:
     - name: Checkout Router OS
       uses: actions/checkout@v4
@@ -22,7 +22,7 @@ jobs:
     - name: Install Build Dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y build-essential ccache ecj fastjar file g++ gawk gettext git java-utils jq libncurses5-dev libncursesw5-dev libssl-dev python3-distutils python3-setuptools python3-yaml rsync subversion swig xsltproc zlib1g-dev
+        sudo apt-get install -y build-essential ccache ecj fastjar file g++ gawk gettext git default-jdk-headless jq libncurses5-dev libncursesw5-dev libssl-dev python3-distutils python3-setuptools python3-yaml rsync subversion swig xsltproc zlib1g-dev
 
     - name: Run Build Host Tests
       run: |
@@ -39,6 +39,7 @@ jobs:
     - name: Setup Router OS
       run: |
         ./setup.sh
+        mkdir -p openwrt/logs
 
     - name: Update Feeds
       working-directory: openwrt
@@ -91,44 +92,86 @@ jobs:
       working-directory: openwrt
       run: |
         echo "=== Checking for compiled packages ==="
-        ls -la bin/packages/x86_64/base/router-core_*.ipk 2>/dev/null || (echo "router-core package NOT found" && exit 1)
-        ls -la bin/packages/x86_64/network/router-net_*.ipk 2>/dev/null || (echo "router-net package NOT found" && exit 1)
-        ls -la bin/packages/x86_64/utils/router-tests_*.ipk 2>/dev/null || (echo "router-tests package NOT found" && exit 1)
-        echo "=== Checking for images ==="
-        ls -la bin/targets/x86_64/*.img.gz 2>/dev/null || (echo "Image NOT found" && exit 1)
+        ls -la bin/packages/x86_64/base/router-core_*.ipk
+        ls -la bin/packages/x86_64/network/router-net_*.ipk
+        ls -la bin/packages/x86_64/utils/router-tests_*.ipk
+        echo "=== Checking for x86/64 images ==="
+        TARGET_DIR="bin/targets/x86/64"
+        test -d "$TARGET_DIR"
+        find "$TARGET_DIR" -maxdepth 1 -type f -name '*.img.gz' -print -quit | grep -q .
 
     - name: Extract Image for QEMU
       working-directory: openwrt
       run: |
-        IMAGE=$(ls bin/targets/x86_64/*.img.gz | head -1)
-        gunzip -k "$IMAGE"
-        ls -la bin/targets/x86_64/*.img
+        TARGET_DIR="bin/targets/x86/64"
+        IMAGE_GZ="$(find "$TARGET_DIR" -maxdepth 1 -type f -name '*combined-squashfs.img.gz' -print -quit)"
+        if [ -z "$IMAGE_GZ" ]; then
+          IMAGE_GZ="$(find "$TARGET_DIR" -maxdepth 1 -type f -name '*.img.gz' -print -quit)"
+        fi
+        test -n "$IMAGE_GZ"
+        gunzip -k "$IMAGE_GZ"
+        IMAGE="${IMAGE_GZ%.gz}"
+        test -s "$IMAGE"
+        echo "QEMU_IMAGE=$IMAGE" >> "$GITHUB_ENV"
 
     - name: QEMU Boot Test
       working-directory: openwrt
-      timeout-minutes: 10
+      timeout-minutes: 5
       run: |
+        sudo apt-get update
         sudo apt-get install -y qemu-system-x86
-        IMAGE=$(ls bin/targets/x86_64/*.img | head -1)
-        echo "Booting image: $IMAGE"
-        
-        timeout 300 qemu-system-x86_64 \
+        IMAGE="$QEMU_IMAGE"
+        SERIAL_LOG="$PWD/logs/qemu-serial.log"
+        QEMU_LOG="$PWD/logs/qemu-stderr.log"
+        rm -f "$SERIAL_LOG" "$QEMU_LOG"
+
+        echo "Starting QEMU with image: $IMAGE"
+        qemu-system-x86_64 \
+          -machine accel=tcg \
           -m 512M \
-          -drive file="$IMAGE",format=raw \
-          -net nic,model=e1000 \
-          -net user \
-          -nographic \
-          -serial file:/tmp/qemu-serial.log || (echo "QEMU failed or timed out" && exit 1)
-        
-        echo "=== Serial Log (last 50 lines) ==="
-        tail -50 /tmp/qemu-serial.log || true
-        
-        if grep -q "init done" /tmp/qemu-serial.log 2>/dev/null; then
-            echo "✓ QEMU boot test PASSED"
-        else
-            echo "✗ QEMU boot test FAILED - init done not found"
-            exit 1
+          -drive "file=$IMAGE,format=raw,if=ide" \
+          -netdev user,id=net0 \
+          -device e1000,netdev=net0 \
+          -display none \
+          -monitor none \
+          -serial "file:$SERIAL_LOG" \
+          -no-reboot >"$QEMU_LOG" 2>&1 &
+        QEMU_PID=$!
+
+        cleanup() {
+          if kill -0 "$QEMU_PID" 2>/dev/null; then
+            kill "$QEMU_PID" 2>/dev/null || true
+            wait "$QEMU_PID" 2>/dev/null || true
+          fi
+        }
+        trap cleanup EXIT
+
+        BOOTED=0
+        for attempt in $(seq 1 180); do
+          if grep -Eq 'procd: - init complete -|init done|Please press Enter to activate this console\.' "$SERIAL_LOG" 2>/dev/null; then
+            BOOTED=1
+            break
+          fi
+          if ! kill -0 "$QEMU_PID" 2>/dev/null; then
+            echo "QEMU exited before the boot-completion marker appeared."
+            break
+          fi
+          sleep 1
+        done
+
+        echo "=== Serial log (last 100 lines) ==="
+        tail -100 "$SERIAL_LOG" 2>/dev/null || true
+        echo "=== QEMU stderr (last 100 lines) ==="
+        tail -100 "$QEMU_LOG" 2>/dev/null || true
+
+        if [ "$BOOTED" -ne 1 ]; then
+          echo "QEMU boot test FAILED: no boot-completion marker within 180 seconds."
+          exit 1
         fi
+
+        echo "QEMU boot test PASSED."
+        cleanup
+        trap - EXIT
 
     - name: Upload Build Logs
       if: always()
@@ -136,6 +179,7 @@ jobs:
       with:
         name: build-logs
         path: openwrt/logs/
+        if-no-files-found: warn
         retention-days: 7
 
     - name: Upload Build Artifacts
@@ -143,7 +187,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: openwrt-images
-        path: openwrt/bin/targets/x86_64/
+        path: openwrt/bin/targets/x86/64/
         retention-days: 7
 
     - name: Upload Packages

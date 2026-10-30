@@ -69,9 +69,10 @@ The router-dsa-sdk package installs /usr/include/router-os/dsa.h. A plugin expor
 
 The router-dsa-runtime package supplies:
 
-    router-dsa-run /path/to/plugin.so [ingress-ifindex] [packet-length] [ip-version] [ip-protocol]
+    router-dsa-run /path/to/plugin.so --ingress 3 --length 128 --ip-version 6 --protocol 6 \
+      --src-ip 2001:db8::1 --dst-ip 2001:db8::2 --src-port 12345 --dst-port 443
 
-The runner invokes the plugin once with synthetic metadata and prints its decision. It is intended for deterministic algorithm development and smoke testing. It is not a live packet capture, forwarding, routing or scheduling dataplane.
+The original positional form remains supported. Named options also accept packet marks, queue mappings and timestamps. Add --warmup N and --iterations N for an offline callback microbenchmark. The runner invokes the plugin synchronously with synthetic metadata and prints its decision. Its timing measures only the local callback and is not a live packet capture, forwarding result, router throughput or end-to-end latency. A dataplane adapter is still needed before decisions can affect real packets.
 
 Host-side ABI smoke test:
 

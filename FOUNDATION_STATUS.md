@@ -19,7 +19,7 @@ The foundation must provide a reproducible OpenWrt build entry point, valid cust
 - router-net's observer is opt-in and never runs ifup/ifdown or changes interface configuration.
 - router-tests checks UCI parsing, hardware inventory output and LAN/WAN configuration without assuming every device has two NICs.
 - router-dsa-sdk defines ABI v1 for classify, route, schedule and observe plugin stages.
-- router-dsa-runtime loads a trusted plugin and runs it against synthetic metadata; it prints the plugin's decision.
+- router-dsa-runtime loads a trusted plugin and runs it against synthetic metadata; named inputs cover addresses, ports, packet marks, queues and protocol. It includes an offline callback microbenchmark, clearly separate from live forwarding performance.
 - `examples/dsa/protocol-classifier/` provides a tested TCP/UDP mark-setting plugin example; the ABI smoke test compiles and executes TCP, UDP and unclassified-protocol cases.
 - Host-side tests compile a shared plugin, load it, validate its descriptor and exercise init/process/destroy.
 - Shell, UCI-subset and DSA ABI source checks are included in validate-packages.sh.

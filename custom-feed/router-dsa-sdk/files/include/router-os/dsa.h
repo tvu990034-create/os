@@ -46,10 +46,11 @@ enum router_dsa_capability {
 };
 
 /*
- * Metadata is immutable for the duration of process(). Address and port
- * fields are in network byte order. IPv4 addresses occupy the first 4 bytes
- * of the 16-byte address arrays; IPv6 uses all 16 bytes. No packet payload
- * pointer is exposed in ABI v1.
+ * Metadata is immutable for the duration of process(). Address arrays contain
+ * raw network-order bytes; Ethernet protocol and source/destination ports are
+ * in network byte order. IPv4 addresses occupy the first 4 bytes of the
+ * 16-byte arrays; IPv6 uses all 16 bytes. No packet payload pointer is
+ * exposed in ABI v1.
  */
 struct router_dsa_packet {
 	uint32_t struct_size;

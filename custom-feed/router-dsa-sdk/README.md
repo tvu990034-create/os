@@ -16,7 +16,7 @@ A plugin exports router_dsa_get_algorithm_v1(), returns a static descriptor, and
 ## Contract
 
 - The ABI uses fixed-width integer fields and an explicit ABI version.
-- Packet metadata is immutable during the callback; address and port values are in network byte order.
+- Packet metadata is immutable during the callback. Address arrays are raw network-order bytes; Ethernet protocol and port fields are in network byte order.
 - A plugin must not retain pointers to host-owned structures after process() returns.
 - Callbacks must be bounded and non-blocking. The host may invoke callbacks concurrently only when the descriptor advertises ROUTER_DSA_CAP_THREAD_SAFE.
 - Return 0 for success and a negative value for failure.

@@ -34,6 +34,24 @@ printf '%s\n' "$OUTPUT" | grep -Fq 'ingress_ifindex=3 packet_length=128 ip_versi
 printf '%s\n' "$OUTPUT" | grep -Fq 'actions=0x00000000'
 echo "DSA runner metadata and decision test passed."
 
+EXAMPLE_SOURCE="$ROOT_DIR/examples/dsa/protocol-classifier/protocol-classifier.c"
+"$CC" -std=c11 -Wall -Wextra -Werror -fPIC -shared \
+	-I "$INCLUDE_DIR" -o "$TMP_DIR/protocol-classifier.so" "$EXAMPLE_SOURCE"
+
+OUTPUT="$("$TMP_DIR/router-dsa-run" "$TMP_DIR/protocol-classifier.so" 3 128 6 6)"
+printf '%s\n' "$OUTPUT" | grep -Fq 'plugin=protocol-classifier version=1.0.0 stage=classify'
+printf '%s\n' "$OUTPUT" | grep -Fq 'ingress_ifindex=3 packet_length=128 ip_version=6 ip_protocol=6'
+printf '%s\n' "$OUTPUT" | grep -Fq 'actions=0x00000002 mark=4097'
+echo "DSA TCP classifier decision test passed."
+
+OUTPUT="$("$TMP_DIR/router-dsa-run" "$TMP_DIR/protocol-classifier.so" 4 512 4 17)"
+printf '%s\n' "$OUTPUT" | grep -Fq 'actions=0x00000002 mark=4098'
+echo "DSA UDP classifier decision test passed."
+
+OUTPUT="$("$TMP_DIR/router-dsa-run" "$TMP_DIR/protocol-classifier.so" 2 64 4 1)"
+printf '%s\n' "$OUTPUT" | grep -Fq 'actions=0x00000000 mark=0'
+echo "DSA unclassified protocol test passed."
+
 if "$TMP_DIR/router-dsa-run" "$TMP_DIR/sample-plugin.so" 0 64 4 17 >/dev/null 2>&1; then
 	echo "FAIL: runner accepted ingress ifindex zero" >&2
 	exit 1

@@ -1,6 +1,6 @@
 # router-core
 
-Core RouterOS package for first-boot defaults, hardware inventory and startup diagnostics.
+Core RouterOS package for first-boot defaults, hardware inventory and startup diagnostics. It intentionally depends only on `procd` and `uci`; firewall4, dnsmasq and odhcpd are selected at the firmware-image level, not pulled into this utility package.
 
 ## Network defaults
 

@@ -6,7 +6,7 @@ A custom router operating system built on OpenWrt and the Linux kernel. The firs
 
 - OpenWrt source is pinned to **v25.12.6** by default.
 - RouterOS packages are maintained in `custom-feed/` and remain separate from upstream OpenWrt source.
-- The x86-64 build profile includes `router-core`, `router-net`, `router-dsa-sdk` and `router-dsa-runtime`.
+- The x86-64 build profile includes `router-core`, `router-net`, `router-dsa-sdk`, `router-dsa-runtime`, `firewall4`, `dnsmasq` and `odhcpd`.
 - The DSA SDK defines a versioned C plugin ABI. The runtime can load a trusted plugin and execute it against synthetic packet metadata for algorithm development and offline testing.
 - **The DSA runtime is not a live packet dataplane.** It does not yet intercept or steer forwarded traffic.
 

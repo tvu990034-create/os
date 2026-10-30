@@ -36,8 +36,8 @@ endef
 define Package/router-net/install
 	$(INSTALL_DIR) $(1)/usr/libexec/router-net
 	$(INSTALL_DIR) $(1)/etc/config
-	$(INSTALL_BIN) ./files/*.sh $(1)/usr/libexec/router-net/ 2>/dev/null || true
-	$(INSTALL_CONF) ./files/config/* $(1)/etc/config/ 2>/dev/null || true
+	$(INSTALL_BIN) ./files/*.sh $(1)/usr/libexec/router-net/
+	$(INSTALL_CONF) ./files/config/* $(1)/etc/config/
 endef
 
 $(eval $(call BuildPackage,router-net))

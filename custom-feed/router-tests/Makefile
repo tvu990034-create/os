@@ -34,7 +34,10 @@ endef
 
 define Package/router-tests/install
 	$(INSTALL_DIR) $(1)/usr/libexec/router-tests
-	$(INSTALL_BIN) ./files/*.sh $(1)/usr/libexec/router-tests/
+	$(INSTALL_BIN) ./files/test-config-syntax.sh $(1)/usr/libexec/router-tests/
+	$(INSTALL_BIN) ./files/test-hardware-detect.sh $(1)/usr/libexec/router-tests/
+	$(INSTALL_BIN) ./files/test-network-validation.sh $(1)/usr/libexec/router-tests/
+	$(INSTALL_BIN) ./files/test-integration.sh $(1)/usr/libexec/router-tests/
 endef
 
 $(eval $(call BuildPackage,router-tests))

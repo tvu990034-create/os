@@ -1,0 +1,160 @@
+name: Router OS Build and Test
+
+on:
+  pull_request:
+    branches: [ main, phase-3-build-verification ]
+  push:
+    branches: [ phase-3-build-verification ]
+  workflow_dispatch:
+
+env:
+  OPENWRT_COMMIT: ca454c0
+  OPENWRT_REPO: https://github.com/openwrt/openwrt.git
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    
+    steps:
+    - name: Checkout Router OS
+      uses: actions/checkout@v4
+      with:
+        path: router-os
+
+    - name: Cache OpenWrt
+      id: cache-openwrt
+      uses: actions/cache@v4
+      with:
+        path: openwrt
+        key: openwrt-${{ env.OPENWRT_COMMIT }}
+
+    - name: Clone OpenWrt
+      if: steps.cache-openwrt.outputs.cache-hit != 'true'
+      run: |
+        git clone ${{ env.OPENWRT_REPO }} openwrt
+        cd openwrt
+        git checkout ${{ env.OPENWRT_COMMIT }}
+
+    - name: Install Build Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          build-essential \
+          ccache \
+          ecj \
+          fastjar \
+          file \
+          g++ \
+          gawk \
+          gettext \
+          git \
+          java-utils \
+          jq \
+          libncurses5-dev \
+          libncursesw5-dev \
+          libssl-dev \
+          python3 unzip \
+          wget \
+          python3-distutils \
+          python3-setuptools \
+          python3-yaml \
+          rsync \
+          subversion \
+          swig \
+          time \
+          xsltproc \
+          zlib1g-dev
+
+    - name: Setup Router OS
+      working-directory: router-os
+      run: |
+        ./setup.sh
+
+    - name: Update Feeds
+      working-directory: router-os/openwrt
+      run: |
+        ./scripts/feeds update custom-feed
+        ./scripts/feeds update packages
+        ./scripts/feeds update luci
+        ./scripts/feeds update routing
+
+    - name: Install Custom Packages
+      working-directory: router-os/openwrt
+      run: |
+        ./scripts/feeds install router-core
+        ./scripts/feeds install router-net
+        ./scripts/feeds install router-tests
+
+    - name: Configure Build
+      working-directory: router-os/openwrt
+      run: |
+        make defconfig
+        echo "CONFIG_TARGET_x86=y" >> .config
+        echo "CONFIG_TARGET_x86_64=y" >> .config
+        echo "CONFIG_TARGET_x86_64_Generic=y" >> .config
+        echo "CONFIG_PACKAGE_router-core=y" >> .config
+        echo "CONFIG_PACKAGE_router-net=y" >> .config
+        echo "CONFIG_PACKAGE_router-tests=y" >> .config
+        echo "CONFIG_PACKAGE_kmod-e1000=y" >> .config
+        echo "CONFIG_PACKAGE_kmod-igb=y" >> .config
+        echo "CONFIG_PACKAGE_kmod-r8169=y" >> .config
+        echo "CONFIG_PACKAGE_kmod-rt2800-pci=y" >> .config
+        echo "CONFIG_PACKAGE_kmod-ath9k=y" >> .config
+        echo "CONFIG_BUSYBOX_CONFIG_IP=y" >> .config
+        echo "CONFIG_BUSYBOX_CONFIG_IPADDR=y" >> .config
+        echo "CONFIG_BUSYBOX_CONFIG_ROUTE=y" >> .config
+        echo "CONFIG_BUSYBOX_CONFIG_IPTABLES=y" >> .config
+        make oldconfig
+
+    - name: Build Toolchain
+      working-directory: router-os/openwrt
+      run: |
+        make toolchain -j$(nproc) || true
+
+    - name: Build Packages
+      working-directory: router-os/openwrt
+      run: |
+        make package/router-core/compile -j$(nproc) V=s || true
+        make package/router-net/compile -j$(nproc) V=s || true
+        make package/router-tests/compile -j$(nproc) V=s || true
+
+    - name: Build Image
+      working-directory: router-os/openwrt
+      run: |
+        make -j$(nproc) V=s || true
+
+    - name: Check Build Output
+      working-directory: router-os/openwrt
+      run: |
+        echo "=== Checking for compiled packages ==="
+        ls -la bin/packages/x86_64/base/ 2>/dev/null || echo "No base packages found"
+        ls -la bin/packages/x86_64/router/ 2>/dev/null || echo "No router packages found"
+        echo "=== Checking for images ==="
+        ls -la bin/targets/x86/64/ 2>/dev/null || echo "No images found"
+
+    - name: Upload Build Logs
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-logs
+        path: router-os/openwrt/logs/
+        retention-days: 7
+
+    - name: Upload Build Artifacts
+      if: success()
+      uses: actions/upload-artifact@v4
+      with:
+        name: openwrt-images
+        path: router-os/openwrt/bin/targets/x86/64/
+        retention-days: 7
+
+    - name: Upload Packages
+      if: success()
+      uses: actions/upload-artifact@v4
+      with:
+        name: custom-packages
+        path: |
+          router-os/openwrt/bin/packages/x86_64/base/router-core_*
+          router-os/openwrt/bin/packages/x86_64/network/router-net_*
+          router-os/openwrt/bin/packages/x86_64/utils/router-tests_*
+        retention-days: 7

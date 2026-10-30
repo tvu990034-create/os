@@ -35,17 +35,17 @@ cat > openwrt/feeds.conf.local << 'EOF'
 # Custom Router OS feed (local package feed, not a git repo)
 src-link custom-feed ../custom-feed
 
-# Local OpenWrt package feeds (using sibling git repositories)
-# These are local clones of the official OpenWrt feeds
-src-git packages ../packages
-src-git luci ../luci
-src-git routing ../routing
+# Use remote feeds for build reproducibility
+# This ensures consistent builds across different environments
+src-git packages https://git.openwrt.org/feed/packages.git
+src-git luci https://git.openwrt.org/project/luci.git
+src-git routing https://git.openwrt.org/feed/routing.git
+src-git telephony https://git.openwrt.org/feed/telephony.git
 
-# Note: These local feeds use relative paths from the openwrt/ directory
-# The standard feeds.conf.default uses remote git repositories
-# This local configuration is for development with existing cloned repositories
-# src-link is used for custom-feed since it's not a git repository
-# src-git is used for packages/luci/routing since they are git repositories
+# Note: For local development with cloned repos, uncomment below:
+# src-git packages ../packages
+# src-git luci ../luci
+# src-git routing ../routing
 EOF
 
 echo "Setup complete!"

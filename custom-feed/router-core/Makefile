@@ -39,12 +39,12 @@ define Package/router-core/install
 	$(INSTALL_DIR) $(1)/etc/config
 	$(INSTALL_DIR) $(1)/etc/hotplug.d/iface
 	$(INSTALL_DIR) $(1)/etc/hotplug.d/net
-	$(INSTALL_CONF) ./files/uci-defaults/* $(1)/etc/uci-defaults/ 2>/dev/null || true
-	$(INSTALL_BIN) ./files/init.d/* $(1)/etc/init.d/ 2>/dev/null || true
-	$(INSTALL_BIN) ./files/libexec/* $(1)/usr/libexec/router-core/ 2>/dev/null || true
-	$(INSTALL_CONF) ./files/config/* $(1)/etc/config/ 2>/dev/null || true
-	$(INSTALL_BIN) ./files/hotplug.d/iface/* $(1)/etc/hotplug.d/iface/ 2>/dev/null || true
-	$(INSTALL_BIN) ./files/hotplug.d/net/* $(1)/etc/hotplug.d/net/ 2>/dev/null || true
+	$(INSTALL_CONF) ./files/uci-defaults/* $(1)/etc/uci-defaults/
+	$(INSTALL_BIN) ./files/init.d/* $(1)/etc/init.d/
+	$(INSTALL_BIN) ./files/libexec/* $(1)/usr/libexec/router-core/
+	$(INSTALL_CONF) ./files/config/* $(1)/etc/config/
+	$(INSTALL_BIN) ./files/hotplug.d/iface/* $(1)/etc/hotplug.d/iface/
+	$(INSTALL_BIN) ./files/hotplug.d/net/* $(1)/etc/hotplug.d/net/
 endef
 
 $(eval $(call BuildPackage,router-core))

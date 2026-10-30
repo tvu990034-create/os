@@ -59,14 +59,14 @@ jobs:
           # The SDK archive ships a broad release config. Replace it so package
           # validation only builds RouterOS packages and their true dependencies.
           cp "$GITHUB_WORKSPACE/config/sdk-package-build.config" .config
-          make defconfig
+          DEVICE_TYPE=basic make defconfig
 
       - name: Compile every custom package
         working-directory: sdk
         env:
           JOBS: 2
         run: |
-          make -j"$JOBS" V=s \
+          DEVICE_TYPE=basic make -j"$JOBS" V=s \
             package/feeds/routeros/router-core/compile \
             package/feeds/routeros/router-net/compile \
             package/feeds/routeros/router-dsa-sdk/compile \

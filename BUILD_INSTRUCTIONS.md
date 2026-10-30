@@ -61,7 +61,7 @@ Use the serial console for first boot. Set a root password before enabling remot
 
 ## Package SDK validation
 
-The GitHub Actions SDK job uses `config/sdk-package-build.config`, a deliberately minimal x86-64 selection that compiles each RouterOS feed package and its declared dependencies. It is separate from `config/x86_64.config`, which selects the full firmware image and LuCI management stack.
+The GitHub Actions SDK job uses `config/sdk-package-build.config` and invokes Make with `DEVICE_TYPE=basic`. This deliberately avoids OpenWrt's default router-specific package set while compiling each RouterOS feed package and its declared dependencies. It is separate from `config/x86_64.config`, which selects the full firmware image and LuCI management stack.
 
 ## DSA plugin development
 

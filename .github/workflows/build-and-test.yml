@@ -92,9 +92,16 @@ jobs:
       working-directory: openwrt
       run: |
         echo "=== Checking for compiled packages ==="
-        ls -la bin/packages/x86_64/base/router-core_*.ipk
-        ls -la bin/packages/x86_64/network/router-net_*.ipk
-        ls -la bin/packages/x86_64/utils/router-tests_*.ipk
+        PACKAGE_DIR="bin/packages/x86_64"
+        for package in router-core router-net router-tests; do
+          PACKAGE_FILE="$(find "$PACKAGE_DIR" -type f -name "${package}_*.ipk" -print -quit)"
+          if [ -z "$PACKAGE_FILE" ]; then
+            echo "ERROR: $package IPK was not produced"
+            find "$PACKAGE_DIR" -maxdepth 3 -type f -name '*.ipk' -print || true
+            exit 1
+          fi
+          echo "Found $PACKAGE_FILE"
+        done
         echo "=== Checking for x86/64 images ==="
         TARGET_DIR="bin/targets/x86/64"
         test -d "$TARGET_DIR"
@@ -196,7 +203,7 @@ jobs:
       with:
         name: custom-packages
         path: |
-          openwrt/bin/packages/x86_64/base/router-core_*
-          openwrt/bin/packages/x86_64/network/router-net_*
-          openwrt/bin/packages/x86_64/utils/router-tests_*
+          openwrt/bin/packages/x86_64/**/router-core_*.ipk
+          openwrt/bin/packages/x86_64/**/router-net_*.ipk
+          openwrt/bin/packages/x86_64/**/router-tests_*.ipk
         retention-days: 7

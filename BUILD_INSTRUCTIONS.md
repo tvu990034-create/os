@@ -16,7 +16,7 @@ Install the required host packages:
 
     ./setup.sh
 
-The setup script clones the pinned OpenWrt tag when openwrt/ is absent. If an existing OpenWrt checkout is at a different revision, setup stops without resetting it. Check out v25.12.6 manually and rerun setup.sh.
+The setup script clones the pinned OpenWrt tag when openwrt/ is absent. If an existing OpenWrt checkout is at a different revision, setup stops without resetting it. Check out v25.12.6 manually and rerun setup.sh. It also syncs the four tracked RouterOS defaults from custom/overlay/etc/config/ into openwrt/files/etc/config/ using a SHA-256 manifest; changes in the local OpenWrt overlay are preserved and cause setup to stop rather than overwrite them.
 
 The script creates openwrt/feeds.conf with:
 

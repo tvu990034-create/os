@@ -13,7 +13,7 @@ The foundation must provide a reproducible OpenWrt build entry point, valid cust
 - The four RouterOS UCI defaults are installed through OpenWrt's standard rootfs `files/` overlay; router-core no longer claims files owned by base-files, dnsmasq or firewall packages.
 - The overlay sync is hash-tracked and refuses to overwrite local modifications.
 - router-core discovers physical wired NICs on first boot instead of hard-coding eth0/eth1.
-- The default firewall rejects unsolicited WAN input; no default WAN ping exception is opened.
+- The default firewall rejects unsolicited WAN input and forwarding. It allows DHCPv6/MLD and rate-limited essential ICMPv6, including echo-request, consistent with OpenWrt's IPv6 requirements.
 - SSH/uhttpd defaults are not forcibly changed by router-core; an unset root password is not converted into a password-authentication policy.
 - router-core hardware inventory and startup diagnostics are read-only.
 - router-net's observer is opt-in and never runs ifup/ifdown or changes interface configuration.
@@ -37,9 +37,9 @@ The foundation must provide a reproducible OpenWrt build entry point, valid cust
 
 | Check | Evidence required | Status |
 |---|---|---|
-| Repository source validation | validate-packages.sh passes on Linux | Pending CI run |
-| DSA ABI smoke test | C shared-object compile/load/lifecycle test passes | Pending CI run |
-| Custom package integration | All custom packages compile with OpenWrt 25.12.6 x86-64 SDK | Pending CI run |
+| Repository source validation | validate-packages.sh passes on Linux | Running in GitHub Actions |
+| DSA ABI smoke test | C shared-object compile/load/lifecycle test passes | Included in current source CI run |
+| Custom package integration | All custom packages compile with OpenWrt 25.12.6 x86-64 SDK | Running in GitHub Actions |
 | Full firmware image | Image build completes with RouterOS packages | Not yet run |
 | Boot/runtime smoke test | QEMU boot plus router-tests pass | Not yet run |
 | Physical hardware | OptiPlex NIC/boot test | Not yet run |

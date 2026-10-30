@@ -20,7 +20,7 @@
 **Correction:**
 - Build work happens inside openwrt/ directory (TOPDIR)
 - Custom package feed lives in custom-feed/ at the repository root
-- The current setup script keeps custom/ as tracked templates and documentation
+- The current setup script keeps custom/ as tracked templates, documentation and the rootfs overlay under custom/overlay/etc/config/
 - No submodules are used
 
 ### 2. Feed Configuration Correction
@@ -45,6 +45,12 @@
 - OpenWrt's build system selects and patches its own kernel; the separate linux/ clone is not used as the build kernel.
 - No custom kernel patch, XDP/eBPF or DPDK code is required for the current foundation.
 - The DSA ABI and offline plugin runner are user-space development tools. They do not intercept live packets.
+
+### 5. Root filesystem configuration ownership
+
+- RouterOS defaults for network, firewall, DHCP and system are supplied through OpenWrt's standard rootfs `files/` overlay, not installed by router-core as duplicate package-owned `/etc/config/*` files.
+- `setup.sh` synchronizes the tracked overlay with a SHA-256 manifest and refuses to overwrite a local operator change.
+- The router-core package owns only RouterOS-specific UCI defaults, init, hotplug and diagnostic files.
 
 ## Compatibility considerations
 

@@ -12,8 +12,6 @@ REGISTRY = ROOT / "config/platforms.tsv"
 REQUIRED_PACKAGES = (
     "router-core",
     "router-net",
-    "router-dsa-sdk",
-    "router-dsa-runtime",
     "router-ui",
 )
 VALID_STATUSES = {"development", "experimental", "verified", "production-ready"}

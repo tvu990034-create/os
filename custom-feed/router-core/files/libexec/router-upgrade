@@ -42,8 +42,8 @@ verify_firmware() {
 		echo "WARNING: Unknown firmware format"
 	fi
 	
-	# Check file size
-	size=$(stat -c%s "$firmware_file")
+	# Check file size (BusyBox-compatible)
+	size=$(wc -c < "$firmware_file" 2>/dev/null || stat -c%s "$firmware_file" 2>/dev/null || echo "0")
 	echo "Firmware size: $size bytes"
 	
 	log "Firmware verified: $firmware_file ($size bytes)"
@@ -92,12 +92,12 @@ sysupgrade_info() {
 
 check_free_space() {
 	required_space=$((100 * 1024 * 1024)) # 100MB minimum
-	available_space=$(df / | awk 'NR==2 {print $4 * 1024}')
+	available_space=$(df / | awk 'NR==2 {print $4 * 1024}' 2>/dev/null || echo "0")
 	
-	if [ "$available_space" -lt "$required_space" ]; then
+	if [ -z "$available_space" ] || [ "$available_space" -lt "$required_space" ]; then
 		echo "ERROR: Insufficient free space"
 		echo "Required: $required_space bytes"
-		echo "Available: $available_space bytes"
+		echo "Available: ${available_space:-unknown} bytes"
 		return 1
 	fi
 	

@@ -32,8 +32,8 @@ check_service_health() {
 			;;
 		dnsmasq)
 			if /etc/init.d/dnsmasq status >/dev/null 2>&1; then
-				# Check if process is listening
-				if netstat -uln 2>/dev/null | grep -q ":53 "; then
+				# Check if process is listening (BusyBox-compatible)
+				if grep -q ":53 " /proc/net/udp 2>/dev/null || grep -q ":53 " /proc/net/tcp 2>/dev/null; then
 					return 0
 				else
 					log "dnsmasq not listening on port 53"

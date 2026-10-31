@@ -32,7 +32,7 @@ PROFILE=$1
 row=$(awk -v wanted="$PROFILE" '
 	$0 !~ /^[[:space:]]*#/ && NF {
 		if ($1 == wanted) {
-			print $2, $3, $4, $5
+			print $2, $3, $4, $5, $6
 			count++
 		}
 	}
@@ -44,10 +44,11 @@ row=$(awk -v wanted="$PROFILE" '
 
 # Values in the registry are repository-maintained, whitespace-separated fields.
 set -- $row
-TARGET=$1
-SUBTARGET=$2
-CONFIG_REL=$3
-PROFILE_STATUS=$4
+PROFILE_TYPE=$1
+TARGET=$2
+SUBTARGET=$3
+CONFIG_REL=$4
+PROFILE_STATUS=$5
 CONFIG_FILE="$ROOT_DIR/$CONFIG_REL"
 
 [ -f "$CONFIG_FILE" ] || fail "profile configuration is missing: $CONFIG_FILE"
@@ -62,6 +63,7 @@ OPENWRT_DIR=${OPENWRT_DIR:-"$ROOT_DIR/openwrt"}
 OPENWRT_REF=${OPENWRT_REF:-v25.12.6}
 
 printf 'RouterOS profile: %s\n' "$PROFILE"
+printf 'Profile type:     %s\n' "$PROFILE_TYPE"
 printf 'OpenWrt target:   %s/%s\n' "$TARGET" "$SUBTARGET"
 printf 'Profile status:   %s\n' "$PROFILE_STATUS"
 printf 'Build jobs:       %s\n' "$JOBS"

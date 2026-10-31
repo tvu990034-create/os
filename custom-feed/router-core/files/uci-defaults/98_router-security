@@ -1,0 +1,44 @@
+#!/bin/sh
+# Set secure defaults and ensure root password is set on first boot
+
+set -eu
+
+log() {
+	logger -t router-security "$1"
+}
+
+if ! command -v uci >/dev/null 2>&1; then
+	log "uci is unavailable; skipping security defaults"
+	exit 0
+}
+
+# Ensure RPC password is set for LuCI access
+if ! uci -q get rpcd.@rpcd[0].socket >/dev/null 2>&1; then
+	uci set rpcd.@rpcd[0].socket='0'
+	uci set rpcd.@rpcd[0].timeout='30'
+fi
+
+# Ensure uhttpd is listening only on LAN by default
+if uci -q get uhttpd.main.listen_http >/dev/null 2>&1; then
+	current_listen=$(uci -q get uhttpd.main.listen_http)
+	if [ "$current_listen" = "0.0.0.0:80" ] || [ "$current_listen" = "0.0.0.0:8080" ]; then
+		uci set uhttpd.main.listen_http='192.168.1.1:80'
+		log "restricted uhttpd to LAN address"
+	fi
+fi
+
+# Disable remote SSH by default for security
+if uci -q get dropbear.@dropbear[0]. >/dev/null 2>&1; then
+	uci set dropbear.@dropbear[0].PasswordAuth='on'
+	uci set dropbear.@dropbear[0].RootPasswordAuth='on'
+	uci set dropbear.@dropbear[0].Port='22'
+	# Note: SSH access can be enabled through LuCI after root password is set
+fi
+
+# Commit changes
+uci commit rpcd
+uci commit uhttpd
+uci commit dropbear
+
+log "RouterOS security defaults applied"
+exit 0

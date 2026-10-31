@@ -91,7 +91,7 @@ else
 	fail "python3 is required for platform, UCI and UI validation"
 fi
 
-if "$ROOT_DIR/scripts/validate-package-files.sh"; then
+if sh "$ROOT_DIR/scripts/validate-package-files.sh"; then
 	pass "package file existence validation"
 else
 	fail "package file existence validation"

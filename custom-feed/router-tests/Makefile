@@ -6,7 +6,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=router-tests
-PKG_RELEASE:=2
+PKG_RELEASE:=3
 PKG_LICENSE:=GPL-2.0-only
 PKG_MAINTAINER:=Router OS Project
 
@@ -32,6 +32,7 @@ define Package/router-tests/install
 	$(INSTALL_BIN) ./files/test-config-syntax.sh $(1)/usr/libexec/router-tests/test-config-syntax.sh
 	$(INSTALL_BIN) ./files/test-hardware-detect.sh $(1)/usr/libexec/router-tests/test-hardware-detect.sh
 	$(INSTALL_BIN) ./files/test-network-validation.sh $(1)/usr/libexec/router-tests/test-network-validation.sh
+	$(INSTALL_BIN) ./files/test-connectivity.sh $(1)/usr/libexec/router-tests/test-connectivity.sh
 endef
 
 $(eval $(call BuildPackage,router-tests))

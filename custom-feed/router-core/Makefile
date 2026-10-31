@@ -6,7 +6,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=router-core
-PKG_RELEASE:=13
+PKG_RELEASE:=14
 PKG_LICENSE:=GPL-2.0-only
 PKG_MAINTAINER:=Router OS Project
 
@@ -37,6 +37,7 @@ define Package/router-core/install
 	$(INSTALL_DIR) $(1)/usr/libexec/router-core
 	$(INSTALL_BIN) ./files/uci-defaults/98_router-security $(1)/etc/uci-defaults/98_router-security
 	$(INSTALL_BIN) ./files/uci-defaults/99_router-core $(1)/etc/uci-defaults/99_router-core
+	$(INSTALL_BIN) ./files/uci-defaults/99_router-logging $(1)/etc/uci-defaults/99_router-logging
 	$(INSTALL_BIN) ./files/init.d/router-core $(1)/etc/init.d/router-core
 	$(INSTALL_BIN) ./files/libexec/router-hw-detect $(1)/usr/libexec/router-core/router-hw-detect
 	$(INSTALL_BIN) ./files/libexec/router-status $(1)/usr/libexec/router-core/router-status

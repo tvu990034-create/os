@@ -6,7 +6,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=router-core
-PKG_RELEASE:=9
+PKG_RELEASE:=10
 PKG_LICENSE:=GPL-2.0-only
 PKG_MAINTAINER:=Router OS Project
 
@@ -41,6 +41,7 @@ define Package/router-core/install
 	$(INSTALL_BIN) ./files/libexec/router-hw-detect $(1)/usr/libexec/router-core/router-hw-detect
 	$(INSTALL_BIN) ./files/libexec/router-status $(1)/usr/libexec/router-core/router-status
 	$(INSTALL_BIN) ./files/libexec/router-backup $(1)/usr/libexec/router-core/router-backup
+	$(INSTALL_BIN) ./files/libexec/router-shutdown $(1)/usr/libexec/router-core/router-shutdown
 	$(INSTALL_BIN) ./files/hotplug.d/iface/99_router-core $(1)/etc/hotplug.d/iface/99_router-core
 	$(INSTALL_BIN) ./files/hotplug.d/net/99_router-core $(1)/etc/hotplug.d/net/99_router-core
 endef

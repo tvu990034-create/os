@@ -1,0 +1,75 @@
+#!/bin/sh
+# Safe shutdown and reboot for RouterOS
+
+log() {
+	logger -t router-shutdown "$1"
+}
+
+# Check if there are active connections before rebooting
+check_active_connections() {
+	established=$(netstat -tn 2>/dev/null | grep ESTABLISHED | wc -l)
+	if [ "$established" -gt 0 ]; then
+		log "Warning: $established established connections active"
+	fi
+}
+
+# Sync filesystems
+sync_filesystems() {
+	sync
+	if [ $? -eq 0 ]; then
+		log "Filesystems synced"
+	else
+		log "ERROR: Filesystem sync failed"
+		return 1
+	fi
+}
+
+# Stop services gracefully
+stop_services() {
+	log "Stopping services gracefully"
+	
+	# Stop non-critical services first
+	/etc/init.d/uhttpd stop 2>/dev/null
+	/etc/init.d/dnsmasq stop 2>/dev/null
+	/etc/init.d/odhcpd stop 2>/dev/null
+	
+	# Stop network services last
+	/etc/init.d/network stop 2>/dev/null
+	/etc/init.d/firewall stop 2>/dev/null
+}
+
+# Create pre-shutdown status report
+create_shutdown_report() {
+	/usr/libexec/router-core/router-status > /tmp/routeros-shutdown-status.txt 2>/dev/null
+	log "Shutdown status report saved"
+}
+
+case "${1:-}" in
+	reboot)
+		log "Initiating system reboot"
+		check_active_connections
+		create_shutdown_report
+		sync_filesystems
+		stop_services
+		log "Rebooting system"
+		reboot
+		;;
+	shutdown)
+		log "Initiating system shutdown"
+		check_active_connections
+		create_shutdown_report
+		sync_filesystems
+		stop_services
+		log "Shutting down system"
+		poweroff
+		;;
+	status)
+		check_active_connections
+		sync_filesystems
+		log "Filesystems synced and checked"
+		;;
+	*)
+		echo "Usage: $0 {reboot|shutdown|status}"
+		exit 1
+		;;
+esac

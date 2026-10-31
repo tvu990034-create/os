@@ -1,0 +1,181 @@
+#!/bin/sh
+# RouterOS WAN/LAN configuration helper
+
+UCI="uci"
+LOG_TAG="router-config"
+
+log() {
+	logger -t "$LOG_TAG" "$1"
+}
+
+list_interfaces() {
+	echo "Available network interfaces:"
+	ip link show 2>/dev/null | grep -E "^[0-9]+:" | awk '{print $2}' | tr -d ':' | while read iface; do
+		state=$(ip link show "$iface" 2>/dev/null | grep -oP '(?<=state )\w+' || echo "unknown")
+		mtu=$(ip link show "$iface" 2>/dev/null | grep -oP '(?<=mtu )\d+' || echo "unknown")
+		addr=$(ip -br addr show "$iface" 2>/dev/null | awk '{print $3}' || echo "no address")
+		printf "  %-10s state=%-8s mtu=%-6s addr=%s\n" "$iface" "$state" "$mtu" "$addr"
+	done
+}
+
+configure_lan() {
+	device=$1
+	ip=$2
+	
+	if [ -z "$device" ]; then
+		echo "Usage: $0 configure-lan <device> [ip-address]"
+		exit 1
+	fi
+	
+	# Check if device exists
+	if ! ip link show "$device" >/dev/null 2>&1; then
+		echo "ERROR: Device $device does not exist"
+		exit 1
+	fi
+	
+	# Configure LAN bridge
+	$UCI set network.lan_bridge='device'
+	$UCI set network.lan_bridge.name='br-lan'
+	$UCI set network.lan_bridge.type='bridge'
+	$UCI add_list network.lan_bridge.ports="$device"
+	
+	# Configure LAN interface
+	$UCI set network.lan='interface'
+	$UCI set network.lan.device='br-lan'
+	$UCI set network.lan.proto='static'
+	
+	if [ -n "$ip" ]; then
+		$UCI set network.lan.ipaddr="$ip"
+	else
+		$UCI set network.lan.ipaddr='192.168.1.1/24'
+	fi
+	
+	$UCI set network.lan.ip6assign='60'
+	
+	$UCI commit network
+	/etc/init.d/network reload
+	
+	log "LAN configured: device=$device ip=${ip:-192.168.1.1/24}"
+	echo "LAN configured successfully"
+}
+
+configure_wan() {
+	device=$1
+	proto=${2:-dhcp}
+	
+	if [ -z "$device" ]; then
+		echo "Usage: $0 configure-wan <device> [protocol]"
+		exit 1
+	fi
+	
+	# Check if device exists
+	if ! ip link show "$device" >/dev/null 2>&1; then
+		echo "ERROR: Device $device does not exist"
+		exit 1
+	fi
+	
+	# Configure WAN
+	$UCI set network.wan='interface'
+	$UCI set network.wan.device="$device"
+	$UCI set network.wan.proto="$proto"
+	
+	# Configure WAN6 for IPv6
+	$UCI set network.wan6='interface'
+	$UCI set network.wan6.device="$device"
+	$UCI set network.wan6.proto='dhcpv6'
+	
+	$UCI commit network
+	/etc/init.d/network reload
+	
+	log "WAN configured: device=$device proto=$proto"
+	echo "WAN configured successfully"
+}
+
+enable_dhcp() {
+	$UCI set dhcp.lan.ignore='0'
+	$UCI set dhcp.lan.start='100'
+	$UCI set dhcp.lan.limit='150'
+	$UCI set dhcp.lan.leasetime='12h'
+	$UCI set dhcp.lan.dhcpv4='server'
+	$UCI set dhcp.lan.dhcpv6='server'
+	$UCI set dhcp.lan.ra='server'
+	$UCI set dhcp.lan.ra_slaac='1'
+	$UCI add_list dhcp.lan.ra_flags='managed-config'
+	$UCI add_list dhcp.lan.ra_flags='other-config'
+	
+	$UCI commit dhcp
+	/etc/init.d/dnsmasq restart
+	
+	log "DHCP server enabled on LAN"
+	echo "DHCP server enabled"
+}
+
+disable_dhcp() {
+	$UCI set dhcp.lan.ignore='1'
+	$UCI commit dhcp
+	/etc/init.d/dnsmasq restart
+	
+	log "DHCP server disabled on LAN"
+	echo "DHCP server disabled"
+}
+
+show_config() {
+	echo "=== Current Configuration ==="
+	echo ""
+	echo "LAN:"
+	echo "  Device: $($UCI -q get network.lan.device)"
+	echo "  IP: $($UCI -q get network.lan.ipaddr)"
+	echo "  Protocol: $($UCI -q get network.lan.proto)"
+	echo ""
+	echo "WAN:"
+	if $UCI -q get network.wan >/dev/null 2>&1; then
+		echo "  Device: $($UCI -q get network.wan.device)"
+		echo "  Protocol: $($UCI -q get network.wan.proto)"
+	else
+		echo "  Not configured"
+	fi
+	echo ""
+	echo "DHCP:"
+	if [ "$($UCI -q get dhcp.lan.ignore)" = "0" ]; then
+		echo "  Status: Enabled"
+		echo "  Start: $($UCI -q get dhcp.lan.start)"
+		echo "  Limit: $($UCI -q get dhcp.lan.limit)"
+	else
+		echo "  Status: Disabled"
+	fi
+}
+
+case "${1:-}" in
+	list-interfaces)
+		list_interfaces
+		;;
+	configure-lan)
+		configure_lan "$2" "$3"
+		;;
+	configure-wan)
+		configure_wan "$2" "$3"
+		;;
+	enable-dhcp)
+		enable_dhcp
+		;;
+	disable-dhcp)
+		disable_dhcp
+		;;
+	show-config)
+		show_config
+		;;
+	*)
+		echo "RouterOS Configuration Helper"
+		echo ""
+		echo "Usage: $0 <command> [args]"
+		echo ""
+		echo "Commands:"
+		echo "  list-interfaces          List available network interfaces"
+		echo "  configure-lan <device> [ip]  Configure LAN interface"
+		echo "  configure-wan <device> [proto] Configure WAN interface (default: dhcp)"
+		echo "  enable-dhcp              Enable DHCP server on LAN"
+		echo "  disable-dhcp             Disable DHCP server on LAN"
+		echo "  show-config               Show current configuration"
+		exit 1
+		;;
+esac

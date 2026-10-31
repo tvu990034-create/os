@@ -3,9 +3,9 @@
 ## Portability contract
 
 RouterOS is one product and one custom package set built on OpenWrt/Linux. It is
-not one firmware binary that can be flashed onto every router. Each device still
-needs a matching OpenWrt target, subtarget, device profile, boot flow, storage
-layout and supported drivers.
+not one firmware binary that can be flashed onto every router. Each device needs
+a matching OpenWrt target, subtarget, device profile, boot flow, storage layout,
+kernel drivers and board integration.
 
 The portable part is the RouterOS user-space code, management experience,
 configuration model and future algorithm interfaces. The platform-specific
@@ -33,8 +33,28 @@ not a generic image for every ARM router, Raspberry Pi board or embedded SoC.
 Those require their own OpenWrt device target/profile and hardware validation.
 
 Neither status is a production certification. The x86-64 profile is the
-current development baseline. ARMv8 is an additional build profile whose
-package compilation, boot and network behavior must be verified independently.
+current generic PC/VM development baseline. ARMv8 is an additional experimental
+build profile; its package compilation, boot and network behavior must be
+verified independently.
+
+## Board-aware first boot
+
+RouterOS deliberately does not ship a static network or system file through
+the shared rootfs overlay. OpenWrt's first-boot config generation uses the
+selected board's board.json and board.d scripts to produce the initial
+/etc/config/network and /etc/config/system. Replacing those files in a shared
+overlay can suppress that process and destroy important port/VLAN/switch
+topology for an embedded router.
+
+The shared overlay therefore contains only service defaults that do not define
+physical port topology (currently DHCP and firewall). RouterOS first-boot
+defaults preserve the generated interfaces and switch topology. They brand
+only untouched OpenWrt hostname/timezone defaults. Any explicitly selected
+RouterOS generic network template remains a separate opt-in compatibility
+path; it is not installed by the normal build.
+
+Files under custom/configs/*/network.conf are reference templates only. They
+are not deployed by setup.sh or build-platform.sh.
 
 ## Build commands
 
@@ -52,9 +72,8 @@ Build the experimental generic ARMv8 EFI profile:
 
 JOBS=1 minimizes memory pressure on small machines. The default is two jobs.
 The OpenWrt checkout, downloaded sources and build outputs are kept under the
-ignored openwrt/ directory, so an interrupted build can be resumed without
-re-cloning the whole RouterOS repository. make download and later builds reuse
-already downloaded source archives.
+ignored openwrt/ directory, so an interrupted download/build can be resumed.
+make download and subsequent builds reuse already downloaded source archives.
 
 The build command always starts from the tracked profile configuration. If an
 OpenWrt .config already exists, the script preserves its first version as
@@ -76,11 +95,9 @@ prevents accidentally mixing target settings from different builds.
    firewall behavior, reboot persistence and recovery before marking it
    supported.
 
-The first-boot network defaults must not assume that all devices expose the
-same Ethernet names or port topology. Board-generated OpenWrt network
-configuration must be preserved; only generic targets without a board network
-profile may use the RouterOS fallback layout. Device-specific board integration
-remains a foundation acceptance item before broad embedded-router support.
+Board-generated configurations take precedence over RouterOS generic
+templates. Any new target must pass a check proving that LAN/WAN interface
+names, switch VLANs and board port topology are preserved.
 
 ## Validation
 
@@ -90,6 +107,6 @@ Run:
     ./validate-packages.sh
 
 GitHub Actions compiles the custom package feed against the pinned x86-64 and
-ARMv8 SDKs. SDK package compilation does not replace full-image builds or boot
-and physical-device tests. Current acceptance evidence is tracked in
+ARMv8 SDKs. SDK package compilation does not replace full-image builds, QEMU
+boots or physical-device tests. Current acceptance evidence is tracked in
 FOUNDATION_STATUS.md.

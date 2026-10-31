@@ -9,10 +9,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 CONFIGS = [
-    "custom/overlay/etc/config/network",
+    # Service overlays only. network/system are generated from OpenWrt board data.
     "custom/overlay/etc/config/firewall",
     "custom/overlay/etc/config/dhcp",
-    "custom/overlay/etc/config/system",
     "custom-feed/router-net/files/config/router-net",
     "custom/configs/generic/network.conf",
     "custom/configs/x86/network.conf",

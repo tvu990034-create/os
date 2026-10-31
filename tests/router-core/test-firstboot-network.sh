@@ -1,5 +1,5 @@
 #!/bin/sh
-# Exercise first-boot NIC assignment, ULA persistence and safe preservation.
+# Exercise generic fallback behavior and preservation of board-generated layouts.
 
 set -eu
 
@@ -27,7 +27,11 @@ if [ "$1" = "get" ]; then
 			echo "fd12:3456:789a::/48"
 			exit 0
 			;;
-		network.lan_bridge.name) echo "br-lan"; exit 0 ;;
+		network.lan_bridge.name)
+			[ "$BOARD_CONFIG" != "1" ] || exit 1
+			echo "br-lan"
+			exit 0
+			;;
 		network.lan_bridge.ports)
 			[ "$EXISTING_LAN" = "1" ] && { echo "eno1"; exit 0; }
 			exit 1
@@ -35,6 +39,18 @@ if [ "$1" = "get" ]; then
 		network.wan.proto)
 			[ "$EXISTING_WAN" = "1" ] && { echo "static"; exit 0; }
 			exit 1
+			;;
+		system.@system\[0\].hostname)
+			echo "${SYSTEM_HOSTNAME:-OpenWrt}"
+			exit 0
+			;;
+		system.@system\[0\].timezone)
+			echo "${SYSTEM_TIMEZONE:-GMT0}"
+			exit 0
+			;;
+		system.@system\[0\].zonename)
+			echo "${SYSTEM_ZONENAME:-UTC}"
+			exit 0
 			;;
 	esac
 fi
@@ -87,6 +103,8 @@ assert_log two 'add_list network.lan_bridge.ports=eno1'
 assert_log two 'set network.wan.device=eno2'
 assert_log two 'set network.wan6.proto=dhcpv6'
 assert_log two 'commit network'
+assert_log two "set system.@system[0].hostname=RouterOS"
+assert_log two "set system.@system[0].timezone=ICT-7"
 if grep -Fq 'wlan0' "$TMP_DIR/two.log"; then
 	echo "FAIL: wireless interface was assigned as an ethernet port" >&2
 	exit 1
@@ -111,18 +129,36 @@ run_case ula "$TMP_DIR/sys-one" env NO_ULA=1
 assert_log ula 'set network.globals.ula_prefix=fd00:1122:3344::/48'
 assert_log ula 'commit network'
 
-# Devices with no NIC and devices with a preconfigured bridge must still
-# persist a newly generated ULA prefix.
 run_case no-nic "$TMP_DIR/sys-empty" env NO_ULA=1
 assert_log no-nic 'set network.globals.ula_prefix=fd00:1122:3344::/48'
 assert_log no-nic 'commit network'
 
 run_case existing-bridge "$TMP_DIR/sys-one" env NO_ULA=1 EXISTING_LAN=1
-assert_log existing-bridge 'set network.globals.ula_prefix=fd00:1122:3344::/48'
-assert_log existing-bridge 'commit network'
+assert_log existing-bridge 'commit system'
 if grep -Fq 'add_list network.lan_bridge.ports=' "$TMP_DIR/existing-bridge.log"; then
 	echo "FAIL: existing bridge members were modified" >&2
 	exit 1
 fi
 
-echo "First-boot network, ULA persistence and preservation tests passed."
+# Board-generated layouts lack the RouterOS-only generic bridge marker. They
+# must not receive guessed LAN/WAN ports, even on systems with several NICs.
+run_case board "$TMP_DIR/sys-two" env BOARD_CONFIG=1 \
+	SYSTEM_HOSTNAME=BoardRouter SYSTEM_TIMEZONE=EST5EDT SYSTEM_ZONENAME=America/New_York
+if grep -E '^(set|add_list|delete) network\.' "$TMP_DIR/board.log"; then
+	echo "FAIL: board-generated network configuration was modified" >&2
+	exit 1
+fi
+if grep -Fq 'commit network' "$TMP_DIR/board.log"; then
+	echo "FAIL: board-generated network configuration was committed" >&2
+	exit 1
+fi
+if grep -Fq 'set system.@system[0].hostname=RouterOS' "$TMP_DIR/board.log"; then
+	echo "FAIL: board hostname was overwritten" >&2
+	exit 1
+fi
+if grep -Fq 'set system.@system[0].timezone=ICT-7' "$TMP_DIR/board.log"; then
+	echo "FAIL: board timezone was overwritten" >&2
+	exit 1
+fi
+
+echo "First-boot generic defaults and board-network preservation tests passed."

@@ -1,6 +1,5 @@
 #!/bin/sh
-# Configure safe, hardware-aware defaults once on first boot.
-# Existing custom network layouts are preserved.
+# Apply conservative first-boot defaults without replacing board network topology.
 
 set -eu
 
@@ -15,8 +14,10 @@ fi
 
 SYS_CLASS_NET=${ROUTER_CORE_SYS_CLASS_NET:-/sys/class/net}
 NETWORK_CHANGED=0
+SYSTEM_CHANGED=0
 
-# Generate a per-device ULA prefix instead of shipping one shared prefix.
+# OpenWrt normally generates a unique ULA prefix with config_generate. Retain
+# a fallback for targets that do not provide one.
 if ! uci -q get network.globals.ula_prefix >/dev/null 2>&1; then
 	ula_id="$(cat /proc/sys/kernel/random/uuid 2>/dev/null | tr -d '-' | cut -c1-10)"
 	case "$ula_id" in
@@ -31,8 +32,9 @@ if ! uci -q get network.globals.ula_prefix >/dev/null 2>&1; then
 	esac
 fi
 
-# Only auto-wire the stock RouterOS bridge. Never rewrite a user-defined
-# network layout or replace an existing WAN configuration.
+# Retain compatibility with an explicitly selected RouterOS generic bridge
+# template. Normal OpenWrt board-generated configurations do not contain this
+# marker and must be left entirely unchanged.
 BRIDGE_NAME="$(uci -q get network.lan_bridge.name 2>/dev/null || true)"
 if [ "$BRIDGE_NAME" = "br-lan" ]; then
 	EXISTING_PORTS="$(uci -q get network.lan_bridge.ports 2>/dev/null || true)"
@@ -54,7 +56,7 @@ if [ "$BRIDGE_NAME" = "br-lan" ]; then
 			shift
 			uci add_list network.lan_bridge.ports="$LAN_IFACE"
 			NETWORK_CHANGED=1
-			log "assigned first detected wired interface $LAN_IFACE to LAN"
+			log "assigned first detected wired interface $LAN_IFACE to the explicit RouterOS generic LAN bridge"
 
 			if [ "$#" -gt 0 ]; then
 				WAN_IFACE="$1"
@@ -69,25 +71,48 @@ if [ "$BRIDGE_NAME" = "br-lan" ]; then
 					uci set network.wan6.device="$WAN_IFACE"
 					uci set network.wan6.proto='dhcpv6'
 					NETWORK_CHANGED=1
-					log "assigned second detected wired interface $WAN_IFACE to WAN"
+					log "assigned second detected wired interface to WAN in the explicit generic template"
 				fi
 			fi
 
 			for iface in "$@"; do
 				uci add_list network.lan_bridge.ports="$iface"
 				NETWORK_CHANGED=1
-				log "assigned additional wired interface $iface to LAN"
+				log "assigned additional wired interface $iface to the explicit generic LAN bridge"
 			done
 		else
-			log "no physical wired interfaces found; LAN bridge has no member ports"
+			log "no physical wired interfaces found for the explicit generic bridge template"
 		fi
+	else
+		log "generic bridge already has ports; preserving its network configuration"
 	fi
+else
+	log "board-generated network configuration detected; preserving board interface and switch topology"
 fi
 
-# Commit once, including the ULA-only/no-NIC and preconfigured-bridge cases.
+# Brand only untouched OpenWrt defaults. Preserve any board-supplied or
+# operator-configured hostname and timezone.
+CURRENT_HOSTNAME="$(uci -q get system.@system[0].hostname 2>/dev/null || true)"
+if [ "$CURRENT_HOSTNAME" = "OpenWrt" ]; then
+	uci set system.@system[0].hostname='RouterOS'
+	SYSTEM_CHANGED=1
+fi
+
+CURRENT_TIMEZONE="$(uci -q get system.@system[0].timezone 2>/dev/null || true)"
+CURRENT_ZONENAME="$(uci -q get system.@system[0].zonename 2>/dev/null || true)"
+if [ "$CURRENT_TIMEZONE" = "GMT0" ] && [ "$CURRENT_ZONENAME" = "UTC" ]; then
+	uci set system.@system[0].timezone='ICT-7'
+	uci set system.@system[0].zonename='Asia/Bangkok'
+	SYSTEM_CHANGED=1
+fi
+
 if [ "$NETWORK_CHANGED" -eq 1 ]; then
 	uci commit network
 	log "network defaults committed"
+fi
+if [ "$SYSTEM_CHANGED" -eq 1 ]; then
+	uci commit system
+	log "RouterOS system branding defaults committed"
 fi
 
 # Enable one-shot boot diagnostics through the normal rc.common mechanism.

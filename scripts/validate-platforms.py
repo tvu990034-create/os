@@ -40,6 +40,8 @@ def main() -> int:
             continue
 
         profile, target, subtarget, config_rel, status = fields
+        row_failed = False
+
         if not re.fullmatch(r"[a-z0-9_]+", profile):
             print(f"FAIL: invalid profile name at line {line_number}: {profile}")
             failed = True
@@ -57,7 +59,7 @@ def main() -> int:
             continue
         if status not in VALID_STATUSES:
             print(f"FAIL: invalid profile status for {profile}: {status}")
-            failed = True
+            row_failed = True
 
         config_path = (ROOT / config_rel).resolve()
         if ROOT not in config_path.parents or not config_path.is_file():
@@ -77,7 +79,7 @@ def main() -> int:
         missing_selectors = sorted(required_selectors - config_lines)
         if missing_selectors:
             print(f"FAIL: {profile} is missing target selectors: {', '.join(missing_selectors)}")
-            failed = True
+            row_failed = True
 
         devices = [
             item for item in config_lines
@@ -85,7 +87,7 @@ def main() -> int:
         ]
         if len(devices) != 1:
             print(f"FAIL: {profile} must select exactly one generic/device profile; found {len(devices)}")
-            failed = True
+            row_failed = True
 
         missing_packages = [
             package for package in REQUIRED_PACKAGES
@@ -93,9 +95,13 @@ def main() -> int:
         ]
         if missing_packages:
             print(f"FAIL: {profile} is missing RouterOS packages: {', '.join(missing_packages)}")
-            failed = True
+            row_failed = True
 
-        print(f"{'FAIL' if failed else 'PASS'}: {profile} -> {target}/{subtarget} ({status})")
+        if row_failed:
+            failed = True
+            print(f"FAIL: {profile} -> {target}/{subtarget} ({status})")
+        else:
+            print(f"PASS: {profile} -> {target}/{subtarget} ({status})")
 
     if rows == 0:
         print("FAIL: platform registry contains no profiles")

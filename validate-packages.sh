@@ -1,5 +1,5 @@
 #!/bin/sh
-# Validate repository structure, shell syntax, UCI syntax and the DSA SDK ABI.
+# Validate package structure, registered platform profiles, shell, UCI and DSA ABI.
 
 set -eu
 
@@ -48,7 +48,9 @@ fi
 for script in \
 	"$ROOT_DIR/setup.sh" \
 	"$ROOT_DIR/validate-packages.sh" \
+	"$ROOT_DIR/scripts/build-platform.sh" \
 	"$ROOT_DIR/scripts/build-x86_64.sh" \
+	"$ROOT_DIR/scripts/build-armsr-armv8.sh" \
 	"$ROOT_DIR/scripts/install-build-deps-ubuntu.sh" \
 	"$ROOT_DIR/custom-feed/router-core/files/init.d/router-core" \
 	"$ROOT_DIR/custom-feed/router-core/files/libexec/router-hw-detect" \
@@ -70,20 +72,30 @@ for script in \
 done
 
 if command -v python3 >/dev/null 2>&1; then
+	if python3 "$ROOT_DIR/scripts/validate-platforms.py"; then
+		pass "registered platform profiles"
+	else
+		fail "registered platform profiles"
+	fi
 	if python3 "$ROOT_DIR/scripts/validate-uci.py"; then
 		pass "UCI configuration syntax"
 	else
 		fail "UCI configuration syntax"
 	fi
+	if python3 "$ROOT_DIR/scripts/validate-ui.py"; then
+		pass "LuCI dashboard metadata and read-only ACL"
+	else
+		fail "LuCI dashboard metadata and read-only ACL"
+	fi
 else
-	fail "python3 is required for UCI validation"
+	fail "python3 is required for platform, UCI and UI validation"
 fi
 
 if [ -x "$ROOT_DIR/tests/setup/test-setup-overlay.sh" ]; then
 	if "$ROOT_DIR/tests/setup/test-setup-overlay.sh"; then
-		pass "rootfs overlay synchronization and conflict protection"
+		pass "board-aware overlay synchronization and conflict protection"
 	else
-		fail "rootfs overlay synchronization and conflict protection"
+		fail "board-aware overlay synchronization and conflict protection"
 	fi
 else
 	fail "rootfs overlay setup test is not executable"
@@ -91,22 +103,12 @@ fi
 
 if [ -x "$ROOT_DIR/tests/router-core/test-firstboot-network.sh" ]; then
 	if "$ROOT_DIR/tests/router-core/test-firstboot-network.sh"; then
-		pass "first-boot network discovery"
+		pass "first-boot defaults and board-network preservation"
 	else
-		fail "first-boot network discovery"
+		fail "first-boot network test"
 	fi
 else
 	fail "first-boot network test is not executable"
-fi
-
-if command -v python3 >/dev/null 2>&1; then
-	if python3 "$ROOT_DIR/scripts/validate-ui.py"; then
-		pass "LuCI dashboard metadata and read-only ACL"
-	else
-		fail "LuCI dashboard metadata and read-only ACL"
-	fi
-else
-	fail "python3 is required for LuCI metadata validation"
 fi
 
 if command -v node >/dev/null 2>&1; then
@@ -123,7 +125,7 @@ if [ -x "$ROOT_DIR/tests/dsa-sdk/test-plugin.sh" ]; then
 	if "$ROOT_DIR/tests/dsa-sdk/test-plugin.sh"; then
 		pass "DSA plugin ABI and runner tests"
 	else
-		fail "DSA plugin ABI and runner tests"
+		fail "DSA plugin ABI test"
 	fi
 else
 	fail "DSA plugin ABI test script is not executable"

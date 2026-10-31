@@ -53,10 +53,22 @@ verify_firmware() {
 prepare_upgrade() {
 	firmware_file=$1
 	
+	# Verify firmware first
+	if ! verify_firmware "$firmware_file"; then
+		log "Firmware verification failed, aborting upgrade"
+		return 1
+	fi
+	
+	# Check free space
+	if ! check_free_space; then
+		log "Insufficient space for upgrade, aborting"
+		return 1
+	fi
+	
 	# Create backup
 	create_pre_upgrade_backup
 	
-	# Stop critical services
+	# Stop critical services only after validation
 	log "Stopping services for upgrade"
 	/etc/init.d/uhttpd stop 2>/dev/null
 	/etc/init.d/dnsmasq stop 2>/dev/null

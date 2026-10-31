@@ -11,8 +11,8 @@ log() {
 list_interfaces() {
 	echo "Available network interfaces:"
 	ip link show 2>/dev/null | grep -E "^[0-9]+:" | awk '{print $2}' | tr -d ':' | while read iface; do
-		state=$(ip link show "$iface" 2>/dev/null | grep -oP '(?<=state )\w+' || echo "unknown")
-		mtu=$(ip link show "$iface" 2>/dev/null | grep -oP '(?<=mtu )\d+' || echo "unknown")
+		state=$(ip link show "$iface" 2>/dev/null | sed -n 's/.*state \([A-Z]*\).*/\1/p' || echo "unknown")
+		mtu=$(ip link show "$iface" 2>/dev/null | sed -n 's/.*mtu \([0-9]*\).*/\1/p' || echo "unknown")
 		addr=$(ip -br addr show "$iface" 2>/dev/null | awk '{print $3}' || echo "no address")
 		printf "  %-10s state=%-8s mtu=%-6s addr=%s\n" "$iface" "$state" "$mtu" "$addr"
 	done
@@ -33,21 +33,38 @@ configure_lan() {
 		exit 1
 	fi
 	
-	# Configure LAN bridge
-	$UCI set network.lan_bridge='device'
-	$UCI set network.lan_bridge.name='br-lan'
-	$UCI set network.lan_bridge.type='bridge'
-	$UCI add_list network.lan_bridge.ports="$device"
+	# Check if LAN already configured by board
+	if $UCI -q get network.lan >/dev/null 2>&1; then
+		existing_device=$($UCI -q get network.lan.device 2>/dev/null || echo "")
+		if [ -n "$existing_device" ]; then
+			echo "LAN already configured by board or user (device: $existing_device)"
+			echo "Use LuCI or manual UCI editing to change it"
+			echo "Preserving board-generated configuration"
+			return 0
+		fi
+	fi
+	
+	# Configure LAN bridge only if it doesn't exist
+	if ! $UCI -q get network.lan_bridge >/dev/null 2>&1; then
+		$UCI set network.lan_bridge='device'
+		$UCI set network.lan_bridge.name='br-lan'
+		$UCI set network.lan_bridge.type='bridge'
+		$UCI add_list network.lan_bridge.ports="$device"
+	fi
 	
 	# Configure LAN interface
 	$UCI set network.lan='interface'
 	$UCI set network.lan.device='br-lan'
 	$UCI set network.lan.proto='static'
 	
+	# Use provided IP or existing board IP, or default only if no config exists
 	if [ -n "$ip" ]; then
 		$UCI set network.lan.ipaddr="$ip"
 	else
-		$UCI set network.lan.ipaddr='192.168.1.1/24'
+		existing_ip=$($UCI -q get network.lan.ipaddr 2>/dev/null || echo "")
+		if [ -z "$existing_ip" ]; then
+			$UCI set network.lan.ipaddr='192.168.1.1/24'
+		fi
 	fi
 	
 	$UCI set network.lan.ip6assign='60'
@@ -55,7 +72,7 @@ configure_lan() {
 	$UCI commit network
 	/etc/init.d/network reload
 	
-	log "LAN configured: device=$device ip=${ip:-192.168.1.1/24}"
+	log "LAN configured: device=$device ip=${ip:-existing_or_default}"
 	echo "LAN configured successfully"
 }
 
@@ -74,15 +91,28 @@ configure_wan() {
 		exit 1
 	fi
 	
+	# Check if WAN already configured by board
+	if $UCI -q get network.wan >/dev/null 2>&1; then
+		existing_device=$($UCI -q get network.wan.device 2>/dev/null || echo "")
+		if [ -n "$existing_device" ]; then
+			echo "WAN already configured by board or user (device: $existing_device)"
+			echo "Use LuCI or manual UCI editing to change it"
+			echo "Preserving board-generated configuration"
+			return 0
+		fi
+	fi
+	
 	# Configure WAN
 	$UCI set network.wan='interface'
 	$UCI set network.wan.device="$device"
 	$UCI set network.wan.proto="$proto"
 	
-	# Configure WAN6 for IPv6
-	$UCI set network.wan6='interface'
-	$UCI set network.wan6.device="$device"
-	$UCI set network.wan6.proto='dhcpv6'
+	# Configure WAN6 for IPv6 (only if not already configured)
+	if ! $UCI -q get network.wan6 >/dev/null 2>&1; then
+		$UCI set network.wan6='interface'
+		$UCI set network.wan6.device="$device"
+		$UCI set network.wan6.proto='dhcpv6'
+	fi
 	
 	$UCI commit network
 	/etc/init.d/network reload

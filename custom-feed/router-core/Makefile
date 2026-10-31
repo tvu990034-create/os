@@ -6,7 +6,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=router-core
-PKG_RELEASE:=15
+PKG_RELEASE:=16
 PKG_LICENSE:=GPL-2.0-only
 PKG_MAINTAINER:=Router OS Project
 

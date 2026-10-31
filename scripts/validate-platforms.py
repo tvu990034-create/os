@@ -16,7 +16,8 @@ REQUIRED_PACKAGES = (
     "router-dsa-runtime",
     "router-ui",
 )
-VALID_STATUSES = {"development", "experimental"}
+VALID_STATUSES = {"development", "experimental", "verified", "production-ready"}
+VALID_TYPES = {"generic-pc", "generic-arm64", "generic-vm", "board-specific", "architecture-level"}
 
 
 def main() -> int:
@@ -34,12 +35,12 @@ def main() -> int:
             continue
 
         fields = line.split()
-        if len(fields) != 5:
-            print(f"FAIL: {REGISTRY}:{line_number}: expected 5 fields")
+        if len(fields) != 6:
+            print(f"FAIL: {REGISTRY}:{line_number}: expected 6 fields")
             failed = True
             continue
 
-        profile, target, subtarget, config_rel, status = fields
+        profile, ptype, target, subtarget, config_rel, status = fields
         row_failed = False
 
         if not re.fullmatch(r"[a-z0-9_]+", profile):
@@ -59,6 +60,9 @@ def main() -> int:
             continue
         if status not in VALID_STATUSES:
             print(f"FAIL: invalid profile status for {profile}: {status}")
+            row_failed = True
+        if ptype not in VALID_TYPES:
+            print(f"FAIL: invalid profile type for {profile}: {ptype}")
             row_failed = True
 
         config_path = (ROOT / config_rel).resolve()
@@ -99,9 +103,9 @@ def main() -> int:
 
         if row_failed:
             failed = True
-            print(f"FAIL: {profile} -> {target}/{subtarget} ({status})")
+            print(f"FAIL: {profile} ({ptype}) -> {target}/{subtarget} ({status})")
         else:
-            print(f"PASS: {profile} -> {target}/{subtarget} ({status})")
+            print(f"PASS: {profile} ({ptype}) -> {target}/{subtarget} ({status})")
 
     if rows == 0:
         print("FAIL: platform registry contains no profiles")

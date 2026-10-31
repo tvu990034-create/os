@@ -1,116 +1,124 @@
 # RouterOS
 
-A portable, multi-platform router operating system built on OpenWrt and the
-Linux kernel. RouterOS shares one custom user-space and package set across
-hardware families while using the correct OpenWrt target, device profile,
-drivers and firmware image for each supported device.
+A portable, multi-platform router operating system built on OpenWrt and the Linux kernel. RouterOS provides a complete, configurable, secure router for compatible hardware platforms.
 
-This is not one universal firmware image for every router. CPU architecture
-alone is not enough: bootloader, device tree, Ethernet/switch drivers, Wi-Fi,
-flash layout and board network configuration must also match. See
-docs/PLATFORM_SUPPORT.md before treating a device as supported.
-
-## Current status
+## Current Status
 
 **Priority: Complete the router operating system**
 
 The current objective is to build a complete, functional router operating system that can boot, configure, and route traffic. DSA algorithm development is deferred until the router OS is fully validated.
 
-## Current baseline
+## What is Implemented
 
-- OpenWrt source is pinned to v25.12.6 by default.
-- RouterOS packages are maintained in custom-feed/, separate from upstream
-  OpenWrt source.
-- x86_64 is the current generic PC/VM development profile.
-- armsr_armv8 is experimental and produces a generic ARMv8 EFI image for
-  compatible Arm SystemReady platforms and QEMU. It is not a profile for every
-  ARM router or single-board computer.
-- Shared rootfs overlays do not replace board-generated network or system
-  configuration.
-
-## What is complete
-
+- ✅ Modular package architecture (router-core, router-net, router-ui, router-tests)
+- ✅ New subsystem packages (router-firewall, router-routing, router-monitor, router-device)
 - ✅ Source management and platform architecture
-- ✅ RouterOS packages (router-core, router-net, router-ui, router-tests)
-- ✅ Build scripts and configuration
-- ✅ First-boot network configuration logic
-- ✅ Service overlays (DHCP, firewall)
-- ✅ LuCI management interface
-- ✅ CI for package compilation
+- ✅ Build scripts and configuration for multiple platforms
+- ✅ First-boot configuration and security defaults
+- ✅ Network health monitoring
+- ✅ System status and diagnostics
+- ✅ Configuration backup/restore
+- ✅ Service supervision
+- ✅ Hardware discovery and capability reporting
+- ✅ Firewall validation and diagnostics
+- ✅ Routing status and diagnostics
+- ✅ System and network monitoring
+- ✅ Comprehensive documentation
+- ✅ CI for source validation and SDK compilation
 
-## What is NOT complete
+## What is NOT Complete
 
-- ⚠️ Full firmware image has not been built
-- ⚠️ Firmware has not been booted in QEMU
-- ⚠️ Networking has not been tested
-- ⚠️ Physical hardware has not been tested
-- ⚠️ DSA algorithm framework is future work
+- ⚠️ Full firmware builds require validation
+- ⚠️ QEMU boot testing needs runtime validation
+- ⚠️ Networking functionality needs QEMU network tests
+- ⚠️ Physical hardware testing (Dell OptiPlex 3050) not yet performed
+- ⚠️ LuCI management interface needs expansion beyond read-only
+- ⚠️ DSA algorithm framework is future work (deferred)
 
-## Quick start (Ubuntu / WSL2)
+## Supported Platforms
 
-Work from a Linux filesystem path (for example, ~/src), not from /mnt/c:
+- **Generic x86_64 PCs**: Desktop, mini PC, workstation, server (development status)
+- **x86_64 Virtual Machines**: QEMU, VMware, VirtualBox (development status)
+- **Generic ARM64**: Arm SystemReady/EFI platforms (experimental status)
+- **Board-specific routers**: Using OpenWrt device profiles (requires testing)
+
+See `docs/platforms/PLATFORM_DEVELOPMENT.md` for platform details.
+
+## Quick Start (Ubuntu / WSL2)
 
     git clone https://github.com/tvu990034-create/os.git
     cd os
     ./scripts/install-build-deps-ubuntu.sh
     ./validate-packages.sh
     ./setup.sh
-    JOBS=1 ./scripts/build-platform.sh x86_64
+    JOBS=2 ./scripts/build-platform.sh x86_64
 
-Use JOBS=1 on a memory-constrained laptop. Increase it only when the host has
-enough RAM and cooling capacity. The default is two parallel jobs.
+Use JOBS=1 on memory-constrained systems.
 
-To build the experimental ARMv8 generic EFI profile:
+## Documentation
 
-    JOBS=1 ./scripts/build-platform.sh armsr_armv8
+- **Architecture**: `docs/architecture/REPOSITORY_ARCHITECTURE.md`, `docs/architecture/SYSTEM_OVERVIEW.md`
+- **Development**: `docs/development/DEVELOPMENT_GUIDE.md`, `docs/development/ADDING_A_PACKAGE.md`
+- **Platforms**: `docs/platforms/PLATFORM_DEVELOPMENT.md`
+- **User Guide**: `docs/user-guide/INSTALLATION.md`, `docs/user-guide/CONFIGURATION.md`
+- **Operations**: `docs/operations/UPGRADES_AND_RECOVERY.md`
+- **Hardware**: `docs/DELL_OPTIPLEX_3050.md`
 
-The first build fetches pinned OpenWrt sources, feeds and package archives.
-Keep the ignored openwrt/ directory between attempts: interrupted downloads
-and builds can be resumed. The build script preserves the original OpenWrt
-.config once and reapplies the selected tracked profile on each run.
+## Repository Structure
 
-## Repository layout
+```
+custom-feed/
+├── router-core/         # Core system services
+├── router-net/          # Network monitoring
+├── router-ui/           # LuCI interface
+├── router-tests/        # On-device tests
+├── router-firewall/     # Firewall management
+├── router-routing/      # Routing utilities
+├── router-monitor/      # System monitoring
+├── router-device/       # Hardware discovery
+├── router-dsa-sdk/      # DSA SDK (future work)
+└── router-dsa-runtime/  # DSA runtime (future work)
 
-- custom-feed/router-core: first-boot defaults, hardware inventory and
-  startup diagnostics.
-- custom-feed/router-net: optional read-only interface observer.
-- custom-feed/router-dsa-sdk: versioned C ABI header for user-written plugins.
-- custom-feed/router-dsa-runtime: trusted plugin loader and offline test runner.
-- custom-feed/router-tests: optional on-device smoke tests.
-- custom-feed/router-ui: read-only LuCI system/network dashboard.
-- custom/overlay: shared DHCP and firewall service defaults only.
-- config/platforms.tsv: registered OpenWrt targets and tracked profiles.
-- config/: firmware and SDK package-build configurations.
-- scripts/build-platform.sh: common build entry point for registered profiles.
-- tests/: host-side regression tests.
+config/
+├── platforms.tsv        # Platform registry
+├── x86_64.config        # x86_64 firmware config
+├── armsr_armv8.config   # ARMv8 firmware config
+└── sdk-*.config         # SDK build configs
 
-## First-boot behavior
-
-OpenWrt generates network and system configuration from each selected board's
-metadata and board.d scripts. RouterOS preserves that generated configuration,
-including board-specific Ethernet names, switch ports and VLAN topology.
-
-For the generic x86-64 and ARMv8 profiles, the actual generated defaults still
-need boot testing. Do not assume the first physical port is LAN or that the
-second is WAN without checking the target's generated UCI configuration.
-
-Connect through the documented management interface for the selected board.
-Set a root password on the local console before enabling remote administration.
+docs/
+├── architecture/        # System architecture
+├── development/         # Development guides
+├── platforms/           # Platform documentation
+├── user-guide/          # User documentation
+├── operations/          # Operations documentation
+└── reports/             # Historical reports
+```
 
 ## Validation
 
-Run source and platform validation on a Linux development host:
+Run source validation:
 
     ./validate-packages.sh
+
+Run platform validation:
+
     python3 scripts/validate-platforms.py
 
-For on-device tests, build with router-tests selected and run:
+## CI/CD
 
-    /usr/libexec/router-tests/test-config-syntax.sh
-    /usr/libexec/router-tests/test-hardware-detect.sh
-    /usr/libexec/router-tests/test-network-validation.sh
+- `validate.yml`: Source validation on push/PR
+- `openwrt-sdk-build.yml`: SDK package compilation
+- `build-and-boot.yml`: Full firmware build and QEMU boot test (path-filtered)
 
-GitHub Actions validates shell/UCI/UI metadata and compiles the custom packages
-against the pinned x86-64 and ARMv8 SDKs. Full firmware builds, QEMU boots and
-physical hardware tests are required before the router OS can be considered
-complete.
+## Development
+
+See `docs/development/DEVELOPMENT_GUIDE.md` for complete development workflow.
+
+## DSA Development
+
+DSA (Data Structure Acceleration) development is deferred until the router OS foundation is complete. DSA packages are isolated in the repository but are not required for router OS builds.
+
+## Contribution
+
+RouterOS is under active development. The router OS foundation is being completed before resuming DSA algorithm work.
+

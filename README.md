@@ -10,6 +10,12 @@ alone is not enough: bootloader, device tree, Ethernet/switch drivers, Wi-Fi,
 flash layout and board network configuration must also match. See
 docs/PLATFORM_SUPPORT.md before treating a device as supported.
 
+## Current status
+
+**Priority: Complete the router operating system**
+
+The current objective is to build a complete, functional router operating system that can boot, configure, and route traffic. DSA algorithm development is deferred until the router OS is fully validated.
+
 ## Current baseline
 
 - OpenWrt source is pinned to v25.12.6 by default.
@@ -21,11 +27,24 @@ docs/PLATFORM_SUPPORT.md before treating a device as supported.
   ARM router or single-board computer.
 - Shared rootfs overlays do not replace board-generated network or system
   configuration.
-- The DSA SDK defines a versioned C plugin ABI. The runtime runs trusted
-  plugins against synthetic packet metadata; it is not a live packet dataplane.
 
-Use FOUNDATION_STATUS.md for acceptance checks and verification status. Older
-PHASE and FINAL reports are historical snapshots.
+## What is complete
+
+- ✅ Source management and platform architecture
+- ✅ RouterOS packages (router-core, router-net, router-ui, router-tests)
+- ✅ Build scripts and configuration
+- ✅ First-boot network configuration logic
+- ✅ Service overlays (DHCP, firewall)
+- ✅ LuCI management interface
+- ✅ CI for package compilation
+
+## What is NOT complete
+
+- ⚠️ Full firmware image has not been built
+- ⚠️ Firmware has not been booted in QEMU
+- ⚠️ Networking has not been tested
+- ⚠️ Physical hardware has not been tested
+- ⚠️ DSA algorithm framework is future work
 
 ## Quick start (Ubuntu / WSL2)
 
@@ -91,15 +110,7 @@ For on-device tests, build with router-tests selected and run:
     /usr/libexec/router-tests/test-hardware-detect.sh
     /usr/libexec/router-tests/test-network-validation.sh
 
-GitHub Actions validates shell/UCI/UI metadata, tests the DSA plugin ABI and
-compiles the custom packages against the pinned x86-64 and ARMv8 SDKs. Full
-firmware builds, QEMU boots and physical hardware tests are separate acceptance
-gates. Successful package compilation alone does not certify a router.
-
-## DSA development boundary
-
-You can write algorithm modules against router-os/dsa.h and test them offline
-with router-dsa-run. Only trusted shared objects should be loaded. The current
-runtime passes synthetic metadata to plugins; a separate dataplane adapter and
-live forwarding tests are still required before plugin decisions can affect
-traffic or be described as router performance improvements.
+GitHub Actions validates shell/UCI/UI metadata and compiles the custom packages
+against the pinned x86-64 and ARMv8 SDKs. Full firmware builds, QEMU boots and
+physical hardware tests are required before the router OS can be considered
+complete.

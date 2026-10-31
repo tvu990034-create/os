@@ -2,14 +2,16 @@ name: RouterOS source validation
 
 on:
   push:
+    branches: [foundation/ready-for-dsa]
   pull_request:
+    branches: [foundation/ready-for-dsa]
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: routeros-validate-${{ github.event.pull_request.number || github.ref }}
+  group: routeros-validate-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:

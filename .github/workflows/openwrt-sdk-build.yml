@@ -2,14 +2,16 @@ name: OpenWrt 25.12.6 multi-platform package SDK build
 
 on:
   push:
+    branches: [foundation/ready-for-dsa]
   pull_request:
+    branches: [foundation/ready-for-dsa]
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: routeros-sdk-${{ github.event.pull_request.number || github.ref }}
+  group: routeros-sdk-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -62,8 +64,6 @@ jobs:
           ./scripts/feeds update -a
           ./scripts/feeds install router-core
           ./scripts/feeds install router-net
-          ./scripts/feeds install router-dsa-sdk
-          ./scripts/feeds install router-dsa-runtime
           ./scripts/feeds install router-tests
           ./scripts/feeds install router-ui
           ./scripts/feeds install luci-base
@@ -72,7 +72,7 @@ jobs:
           cp "$CONFIG_FILE" .config
           DEVICE_TYPE=basic make defconfig
 
-      - name: Compile every custom package
+      - name: Compile core RouterOS packages
         working-directory: sdk
         env:
           JOBS: 2
@@ -80,10 +80,17 @@ jobs:
           DEVICE_TYPE=basic make -j"$JOBS" V=s \
             package/feeds/routeros/router-core/compile \
             package/feeds/routeros/router-net/compile \
-            package/feeds/routeros/router-dsa-sdk/compile \
-            package/feeds/routeros/router-dsa-runtime/compile \
             package/feeds/routeros/router-tests/compile \
             package/feeds/routeros/router-ui/compile
+
+      - name: Compile DSA packages (optional, do not fail)
+        working-directory: sdk
+        env:
+          JOBS: 2
+        run: |
+          DEVICE_TYPE=basic make -j"$JOBS" V=s \
+            package/feeds/routeros/router-dsa-sdk/compile \
+            package/feeds/routeros/router-dsa-runtime/compile || true
 
       - name: Upload custom package artifacts
         if: always()

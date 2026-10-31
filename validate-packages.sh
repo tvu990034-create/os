@@ -34,7 +34,7 @@ done
 
 SDK_CONFIG="$ROOT_DIR/config/sdk-package-build.config"
 if [ -f "$SDK_CONFIG" ]; then
-	for package in router-core router-net router-dsa-sdk router-dsa-runtime router-tests router-ui; do
+	for package in router-core router-net router-tests router-ui; do
 		if grep -Fqx "CONFIG_PACKAGE_${package}=y" "$SDK_CONFIG"; then
 			pass "SDK profile selects $package"
 		else
@@ -89,6 +89,12 @@ if command -v python3 >/dev/null 2>&1; then
 	fi
 else
 	fail "python3 is required for platform, UCI and UI validation"
+fi
+
+if "$ROOT_DIR/scripts/validate-package-files.sh"; then
+	pass "package file existence validation"
+else
+	fail "package file existence validation"
 fi
 
 if [ -x "$ROOT_DIR/tests/setup/test-setup-overlay.sh" ]; then

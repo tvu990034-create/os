@@ -1,5 +1,5 @@
 #!/bin/sh
-# RouterOS operational status report
+# RouterOS operational status report - handles board-specific configurations
 
 UCI_GET="uci -q get"
 REPORT_FILE="/tmp/routeros-status.txt"
@@ -12,7 +12,20 @@ echo "" >> "$REPORT_FILE"
 # System information
 echo "=== System Information ===" >> "$REPORT_FILE"
 echo "Hostname: $($UCI_GET system.@system[0].hostname 2>/dev/null || echo 'unknown')" >> "$REPORT_FILE"
+echo "Model: $(cat /tmp/sysinfo/model 2>/dev/null || echo 'unknown')" >> "$REPORT_FILE"
 echo "Uptime: $(uptime 2>/dev/null || echo 'unknown')" >> "$REPORT_FILE"
+echo "" >> "$REPORT_FILE"
+
+# CPU information
+echo "=== CPU Information ===" >> "$REPORT_FILE"
+if [ -f /proc/cpuinfo ]; then
+	cpu_model=$(grep -m1 "^model name" /proc/cpuinfo 2>/dev/null | cut -d: -f2- | xargs || echo "unknown")
+	cpu_cores=$(grep -c "^processor" /proc/cpuinfo 2>/dev/null || echo "unknown")
+	echo "Model: $cpu_model" >> "$REPORT_FILE"
+	echo "Cores: $cpu_cores" >> "$REPORT_FILE"
+else
+	echo "CPU info unavailable" >> "$REPORT_FILE"
+fi
 echo "" >> "$REPORT_FILE"
 
 # Network interfaces
@@ -20,33 +33,57 @@ echo "=== Network Interfaces ===" >> "$REPORT_FILE"
 ip link show 2>/dev/null | grep -E "^[0-9]+:" | while read line; do
 	iface=$(echo "$line" | awk '{print $2}' | tr -d ':')
 	state=$(ip link show "$iface" 2>/dev/null | grep -oP '(?<=state )\w+' || echo "unknown")
-	echo "$iface: $state" >> "$REPORT_FILE"
+	mtu=$(ip link show "$iface" 2>/dev/null | grep -oP '(?<=mtu )\d+' || echo "unknown")
+	addr=$(ip -br addr show "$iface" 2>/dev/null | awk '{print $3}' || echo "no address")
+	echo "$iface: state=$state mtu=$mtu addr=$addr" >> "$REPORT_FILE"
 done
 echo "" >> "$REPORT_FILE"
 
 # LAN configuration
 echo "=== LAN Configuration ===" >> "$REPORT_FILE"
-lan_device=$($UCI_GET network.lan.device 2>/dev/null || echo "unknown")
-lan_ip=$($UCI_GET network.lan.ipaddr 2>/dev/null || echo "unknown")
+lan_device=$($UCI_GET network.lan.device 2>/dev/null || echo "")
+if [ -z "$lan_device" ]; then
+	lan_bridge=$($UCI_GET network.lan_bridge.name 2>/dev/null || echo "")
+	if [ -n "$lan_bridge" ]; then
+		lan_device="$lan_bridge"
+	else
+		lan_device="br-lan (not configured)"
+	fi
+fi
+lan_ip=$($UCI_GET network.lan.ipaddr 2>/dev/null || echo "not configured")
+lan_proto=$($UCI_GET network.lan.proto 2>/dev/null || echo "unknown")
 echo "Device: $lan_device" >> "$REPORT_FILE"
+echo "Protocol: $lan_proto" >> "$REPORT_FILE"
 echo "IP Address: $lan_ip" >> "$REPORT_FILE"
 echo "" >> "$REPORT_FILE"
 
 # WAN configuration
 echo "=== WAN Configuration ===" >> "$REPORT_FILE"
 if $UCI_GET network.wan >/dev/null 2>&1; then
-	wan_device=$($UCI_GET network.wan.device 2>/dev/null || echo "unknown")
+	wan_device=$($UCI_GET network.wan.device 2>/dev/null || echo "not configured")
 	wan_proto=$($UCI_GET network.wan.proto 2>/dev/null || echo "unknown")
+	wan_ip=$($UCI_GET network.wan.ipaddr 2>/dev/null || echo "dynamic")
 	echo "Device: $wan_device" >> "$REPORT_FILE"
 	echo "Protocol: $wan_proto" >> "$REPORT_FILE"
+	echo "IP Address: $wan_ip" >> "$REPORT_FILE"
 else
-	echo "WAN not configured" >> "$REPORT_FILE"
+	echo "WAN not configured (may be single-NIC or LAN-only setup)" >> "$REPORT_FILE"
+fi
+echo "" >> "$REPORT_FILE"
+
+# Routing information
+echo "=== Routing ===" >> "$REPORT_FILE"
+default_route=$(ip route show default 2>/dev/null)
+if [ -n "$default_route" ]; then
+	echo "Default route: $default_route" >> "$REPORT_FILE"
+else
+	echo "No default route" >> "$REPORT_FILE"
 fi
 echo "" >> "$REPORT_FILE"
 
 # Service status
 echo "=== Service Status ===" >> "$REPORT_FILE"
-for service in firewall dnsmasq odhcpd uhttpd rpcd dropbear; do
+for service in firewall dnsmasq odhcpd uhttpd rpcd dropbear netifd; do
 	if [ -x "/etc/init.d/$service" ]; then
 		if /etc/init.d/$service status >/dev/null 2>&1; then
 			echo "$service: RUNNING" >> "$REPORT_FILE"
@@ -64,14 +101,24 @@ echo "=== DHCP Leases ===" >> "$REPORT_FILE"
 if [ -f /tmp/dhcp.leases ]; then
 	lease_count=$(wc -l < /tmp/dhcp.leases)
 	echo "Active leases: $lease_count" >> "$REPORT_FILE"
+	if [ "$lease_count" -gt 0 ] && [ "$lease_count" -lt 20 ]; then
+		echo "Lease details:" >> "$REPORT_FILE"
+		tail -n +2 /tmp/dhcp.leases 2>/dev/null >> "$REPORT_FILE"
+	fi
 else
 	echo "No lease file found" >> "$REPORT_FILE"
 fi
 echo "" >> "$REPORT_FILE"
 
+# DNS status
+echo "=== DNS Configuration ===" >> "$REPORT_FILE"
+dns_servers=$($UCI_GET network.lan.dns 2>/dev/null || echo "using dnsmasq defaults")
+echo "DNS servers: $dns_servers" >> "$REPORT_FILE"
+echo "" >> "$REPORT_FILE"
+
 # RouterOS package versions
 echo "=== RouterOS Package Versions ===" >> "$REPORT_FILE"
-for pkg in router-core router-net router-ui; do
+for pkg in router-core router-net router-ui router-dsa-sdk router-dsa-runtime; do
 	version=$(opkg info "$pkg" 2>/dev/null | grep "^Version:" | awk '{print $2}' || echo "not installed")
 	echo "$pkg: $version" >> "$REPORT_FILE"
 done
@@ -79,12 +126,17 @@ echo "" >> "$REPORT_FILE"
 
 # Disk usage
 echo "=== Storage ===" >> "$REPORT_FILE"
-df -h 2>/dev/null | grep -E "^(/dev|overlay)" >> "$REPORT_FILE"
+df -h 2>/dev/null | grep -E "^(/dev|overlay|tmpfs)" >> "$REPORT_FILE"
 echo "" >> "$REPORT_FILE"
 
 # Memory
 echo "=== Memory ===" >> "$REPORT_FILE"
 free -h 2>/dev/null >> "$REPORT_FILE"
+echo "" >> "$REPORT_FILE"
+
+# Recent system logs (last 10 lines)
+echo "=== Recent System Logs (last 10 lines) ===" >> "$REPORT_FILE"
+logread -l 10 2>/dev/null >> "$REPORT_FILE" || echo "logread not available" >> "$REPORT_FILE"
 echo "" >> "$REPORT_FILE"
 
 echo "Report saved to $REPORT_FILE"

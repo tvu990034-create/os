@@ -1,6 +1,8 @@
 'use strict';
 'require view';
 'require rpc';
+'require form';
+'require fs';
 
 var callSystemBoard = rpc.declare({
 	object: 'system',
@@ -15,6 +17,40 @@ var callSystemInfo = rpc.declare({
 var callNetworkDump = rpc.declare({
 	object: 'network.interface',
 	method: 'dump'
+});
+
+var callUCIAdd = rpc.declare({
+	object: 'uci',
+	method: 'add',
+	params: ['config', 'type', 'name'],
+	expect: { values: {} }
+});
+
+var callUCISet = rpc.declare({
+	object: 'uci',
+	method: 'set',
+	params: ['config', 'section', 'option', 'value'],
+	expect: { values: {} }
+});
+
+var callUCIDelete = rpc.declare({
+	object: 'uci',
+	method: 'delete',
+	params: ['config', 'section'],
+	expect: { values: {} }
+});
+
+var callUCICommit = rpc.declare({
+	object: 'uci',
+	method: 'commit',
+	params: ['config'],
+	expect: { values: {} }
+});
+
+var callNetworkRestart = rpc.declare({
+	object: 'network',
+	method: 'restart',
+	expect: { values: {} }
 });
 
 function safeValue(value) {
@@ -121,7 +157,7 @@ return view.extend({
 		return E('div', { 'class': 'cbi-map' }, [
 			E('h2', {}, [ _('RouterOS Overview') ]),
 			E('p', { 'class': 'cbi-map-descr' }, [
-				_('Read-only system and interface status for this RouterOS device.')
+				_('System and network status for this RouterOS device.')
 			]),
 			E('div', { 'class': 'cbi-section' }, [
 				E('h3', {}, [ _('System Information') ]),
@@ -130,6 +166,13 @@ return view.extend({
 			E('div', { 'class': 'cbi-section' }, [
 				E('h3', {}, [ _('Network Interfaces') ]),
 				makeInterfaceTable(network.interface)
+			]),
+			E('div', { 'class': 'cbi-section' }, [
+				E('h3', {}, [ _('Quick Actions') ]),
+				E('p', {}, [
+					_('Use Network menu to configure WAN/LAN settings.'),
+					_('Use System menu to manage services and reboot.')
+				])
 			])
 		]);
 	}

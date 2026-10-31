@@ -13,9 +13,6 @@ CONFIGS = [
     "custom/overlay/etc/config/firewall",
     "custom/overlay/etc/config/dhcp",
     "custom-feed/router-net/files/config/router-net",
-    "custom/configs/generic/network.conf",
-    "custom/configs/x86/network.conf",
-    "custom/configs/armsr/network.conf",
 ]
 
 

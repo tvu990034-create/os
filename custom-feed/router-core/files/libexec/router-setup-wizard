@@ -1,0 +1,109 @@
+#!/bin/sh
+# RouterOS first-time setup wizard
+
+UCI="uci"
+LOG_TAG="router-setup"
+
+log() {
+	logger -t "$LOG_TAG" "$1"
+}
+
+set_root_password() {
+	if [ -n "$1" ]; then
+		echo "root:$1" | chpasswd
+		log "Root password set"
+	else
+		echo "No password provided, skipping"
+	fi
+}
+
+configure_timezone() {
+	timezone=$1
+	if [ -n "$timezone" ]; then
+		$UCI set system.@system[0].timezone="$timezone"
+		$UCI set system.@system[0].zonename="$timezone"
+		$UCI commit system
+		log "Timezone set to $timezone"
+	fi
+}
+
+configure_hostname() {
+	hostname=$1
+	if [ -n "$hostname" ]; then
+		$UCI set system.@system[0].hostname="$hostname"
+		$UCI commit system
+		/etc/init.d/system reload
+		log "Hostname set to $hostname"
+	fi
+}
+
+enable_ssh() {
+	$UCI set dropbear.@dropbear[0].PasswordAuth='on'
+	$UCI set dropbear.@dropbear[0].RootPasswordAuth='on'
+	$UCI commit dropbear
+	/etc/init.d/dropbear enable
+	/etc/init.d/dropbear restart
+	log "SSH enabled with password authentication"
+}
+
+main() {
+	echo "RouterOS First-Time Setup Wizard"
+	echo "================================"
+	echo ""
+	
+	# Check if already configured
+	if [ -f /etc/firstboot_done ]; then
+		echo "RouterOS has already been configured."
+		echo "Run configuration tools to make changes."
+		exit 0
+	fi
+	
+	# Set hostname
+	echo "Current hostname: $($UCI -q get system.@system[0].hostname)"
+	echo -n "Enter new hostname (or press Enter to keep current): "
+	read hostname
+	if [ -n "$hostname" ]; then
+		configure_hostname "$hostname"
+	fi
+	
+	# Set timezone
+	echo "Current timezone: $($UCI -q get system.@system[0].zonename)"
+	echo -n "Enter new timezone (e.g., UTC, America/New_York, or press Enter to keep current): "
+	read timezone
+	if [ -n "$timezone" ]; then
+		configure_timezone "$timezone"
+	fi
+	
+	# Set root password
+	echo ""
+	echo "Root password configuration"
+	stty -echo
+	echo -n "Enter new root password (or press Enter to skip): "
+	read password
+	stty echo
+	if [ -n "$password" ]; then
+		set_root_password "$password"
+	fi
+	
+	# Enable SSH
+	echo ""
+	echo -n "Enable SSH access? (y/N): "
+	read enable_ssh_input
+	if [ "$enable_ssh_input" = "y" ] || [ "$enable_ssh_input" = "Y" ]; then
+		enable_ssh
+	fi
+	
+	# Mark setup as complete
+	touch /etc/firstboot_done
+	
+	# Restart network services
+	/etc/init.d/network reload
+	/etc/init.d/dnsmasq restart
+	
+	log "First-time setup completed"
+	echo ""
+	echo "Setup complete. RouterOS is ready."
+	echo "You can now access the web interface at http://$(uci -q get network.lan.ipaddr | cut -d'/' -f1)"
+}
+
+main "$@"

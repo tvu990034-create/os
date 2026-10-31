@@ -35,6 +35,7 @@ tmp/
 .buildconfig
 .config
 .config.old
+.config.routeros-original
 
 # Ignore log files
 *.log

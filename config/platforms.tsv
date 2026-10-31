@@ -1,0 +1,3 @@
+# profile       OpenWrt target  subtarget  config file                      status
+x86_64           x86              64         config/x86_64.config              development
+armsr_armv8      armsr            armv8      config/armsr_armv8.config         experimental

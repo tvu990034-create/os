@@ -1,54 +1,93 @@
 # RouterOS
 
-A custom router operating system built on OpenWrt and the Linux kernel. The first hardware target is generic x86-64, including the planned Dell OptiPlex 3050 platform.
+A portable, multi-platform router operating system built on OpenWrt and the
+Linux kernel. RouterOS is designed to share one custom user-space and package
+set across multiple hardware families while using the correct OpenWrt target,
+device profile, drivers and firmware image for each supported device.
+
+This is not one universal firmware image for every router. CPU architecture
+alone is not enough: bootloader, device tree, Ethernet/switch drivers, Wi-Fi,
+flash layout and board network configuration must also match. See
+docs/PLATFORM_SUPPORT.md before treating a device as supported.
 
 ## Current baseline
 
-- OpenWrt source is pinned to **v25.12.6** by default.
-- RouterOS packages are maintained in `custom-feed/` and remain separate from upstream OpenWrt source.
-- The x86-64 build profile includes `router-core`, `router-net`, `router-dsa-sdk`, `router-dsa-runtime`, `firewall4`, `dnsmasq` and `odhcpd`.
-- The DSA SDK defines a versioned C plugin ABI. The runtime can load a trusted plugin and execute it against synthetic packet metadata. A tested TCP/UDP classifier example lives in `examples/dsa/protocol-classifier/`.
-- **The DSA runtime is not a live packet dataplane.** It does not yet intercept or steer forwarded traffic.
+- OpenWrt source is pinned to v25.12.6 by default.
+- RouterOS packages are maintained in custom-feed/, separate from upstream
+  OpenWrt source.
+- The x86_64 profile is the current generic PC/VM development baseline.
+- The armsr_armv8 profile is experimental and produces a generic ARMv8 EFI
+  image for compatible Arm SystemReady platforms and QEMU. It is not a profile
+  for every ARM router or single-board computer.
+- The DSA SDK defines a versioned C plugin ABI. The runtime can load a trusted
+  plugin and execute it against synthetic packet metadata. The example under
+  examples/dsa/ is for ABI testing only; the runtime is not a live packet
+  dataplane.
 
-Older PHASE and FINAL reports are historical snapshots. Use FOUNDATION_STATUS.md for the current acceptance checklist and verification status.
+Use FOUNDATION_STATUS.md for the current acceptance checklist and verification
+status. Older PHASE and FINAL reports are historical snapshots.
 
 ## Quick start (Ubuntu / WSL2)
 
-Run the following from a Linux filesystem path (for example, ~/src), not from /mnt/c:
+Work from a Linux filesystem path (for example, ~/src), not from /mnt/c, to
+avoid cross-filesystem build overhead:
 
     git clone https://github.com/tvu990034-create/os.git
     cd os
     ./scripts/install-build-deps-ubuntu.sh
+    ./validate-packages.sh
     ./setup.sh
-    JOBS=2 ./scripts/build-x86_64.sh
+    JOBS=1 ./scripts/build-platform.sh x86_64
 
-setup.sh clones OpenWrt v25.12.6 into the ignored openwrt/ directory when it is absent. It creates OpenWrt's active feeds.conf and syncs the tracked RouterOS configuration into openwrt/files/. The sync is hash-tracked and refuses to overwrite local edits.
+Use JOBS=1 on a memory-constrained laptop. Increase it only when the host has
+enough RAM and cooling capacity. The default is two parallel jobs.
+
+To build the experimental ARMv8 generic EFI profile instead:
+
+    JOBS=1 ./scripts/build-platform.sh armsr_armv8
+
+The first build fetches the pinned OpenWrt source, feeds and package source
+archives. Keep the ignored openwrt/ directory between attempts: interrupted
+downloads and builds can be resumed. The build script preserves the first
+pre-existing OpenWrt .config as .config.routeros-original and applies the
+tracked profile config on every run to avoid accidental target mixing.
 
 ## Repository layout
 
-- custom-feed/router-core: first-boot network configuration, hardware inventory and startup diagnostics.
-- custom-feed/router-net: optional, read-only interface observer and DSA runtime dependency.
-- custom-feed/router-dsa-sdk: versioned C ABI header installed at /usr/include/router-os/dsa.h.
-- custom-feed/router-dsa-runtime: router-dsa-run plugin loader/test runner.
+- custom-feed/router-core: first-boot defaults, hardware inventory and
+  startup diagnostics.
+- custom-feed/router-net: optional read-only interface observer and DSA
+  runtime dependency.
+- custom-feed/router-dsa-sdk: versioned C ABI header for user-written
+  algorithm plugins.
+- custom-feed/router-dsa-runtime: trusted plugin loader and offline test
+  runner; it does not process forwarded packets.
 - custom-feed/router-tests: optional on-device smoke tests.
-- custom-feed/router-ui: read-only LuCI dashboard under Status -> RouterOS.
-- custom/configs: generic, x86 and ARM network templates.
-- config/x86_64.config: full reference firmware configuration.
-- config/sdk-package-build.config: minimal configuration used by CI to compile only custom packages and their dependencies.
-- scripts/: build and validation scripts.
-- tests/dsa-sdk/: host-side plugin ABI smoke test.
+- custom-feed/router-ui: read-only LuCI system/network dashboard.
+- custom/overlay: common root filesystem configuration overlay.
+- config/platforms.tsv: registered OpenWrt targets and tracked profiles.
+- config/: full firmware and SDK package-build configurations.
+- scripts/build-platform.sh: common build entry point for registered profiles.
+- tests/: host-side regression tests.
 
-## Network defaults
+## Default network behavior
 
-On first boot, router-core discovers physical wired interfaces. The first detected wired NIC is assigned to LAN; when a second is present, it becomes WAN; additional detected wired NICs join LAN. A single-NIC system receives LAN only and does not get a fictitious WAN interface. The default LAN address is 192.168.1.1/24.
+On the generic profile, router-core discovers physical wired interfaces on
+first boot. The first detected wired NIC is assigned to LAN; when a second is
+present, it becomes WAN; additional detected wired NICs join LAN. A
+single-NIC system receives LAN only. Board-specific router layouts must retain
+their OpenWrt-generated network configuration and must be validated per device.
 
-Connect a management computer to the LAN-side port and set a root password on first console login before enabling remote administration. Do not connect an unconfigured WAN uplink to the LAN port.
+Connect a management computer to the configured LAN-side port. Set a root
+password on the local console before enabling remote administration. Do not
+assume a board's physical port order without checking its device profile.
 
 ## Validation
 
-Run source validation on a Linux development host:
+Run source and profile validation on a Linux development host:
 
     ./validate-packages.sh
+    python3 scripts/validate-platforms.py
 
 For on-device tests, build with router-tests selected and run:
 
@@ -56,8 +95,16 @@ For on-device tests, build with router-tests selected and run:
     /usr/libexec/router-tests/test-hardware-detect.sh
     /usr/libexec/router-tests/test-network-validation.sh
 
-GitHub Actions also validates shell/UCI syntax, exercises the DSA plugin ABI and compiles the custom packages against the pinned OpenWrt x86-64 SDK.
+GitHub Actions validates shell/UCI/UI metadata, exercises the offline DSA
+plugin ABI and compiles custom packages against the pinned x86-64 and ARMv8
+SDKs. Full firmware builds, QEMU boot tests and physical hardware tests are
+separate acceptance gates; a successful package build alone does not certify a
+router.
 
 ## DSA development boundary
 
-Algorithm authors can now implement a shared object against router-os/dsa.h, choose a classify/route/schedule/observe stage and execute the plugin offline using router-dsa-run. Only trusted shared objects should be loaded. A future dataplane adapter is still required before algorithm outputs can affect live forwarding or performance benchmarks.
+You can write algorithm modules against router-os/dsa.h and test them
+offline with router-dsa-run. Only trusted shared objects should be loaded.
+The current runtime passes synthetic metadata to plugins; a separate dataplane
+adapter and live forwarding tests are still required before plugin decisions
+can affect traffic or be described as router performance improvements.

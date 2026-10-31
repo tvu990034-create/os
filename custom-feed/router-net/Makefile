@@ -6,7 +6,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=router-net
-PKG_RELEASE:=3
+PKG_RELEASE:=4
 PKG_LICENSE:=GPL-2.0-only
 PKG_MAINTAINER:=Router OS Project
 
@@ -38,6 +38,7 @@ define Package/router-net/install
 	$(INSTALL_CONF) ./files/config/router-net $(1)/etc/config/router-net
 	$(INSTALL_BIN) ./files/init.d/router-net $(1)/etc/init.d/router-net
 	$(INSTALL_BIN) ./files/monitor-interfaces.sh $(1)/usr/libexec/router-net/monitor-interfaces.sh
+	$(INSTALL_BIN) ./files/check-network-health.sh $(1)/usr/libexec/router-net/check-network-health.sh
 endef
 
 $(eval $(call BuildPackage,router-net))

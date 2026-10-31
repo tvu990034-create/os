@@ -1,0 +1,129 @@
+#!/bin/sh
+# RouterOS service supervision and monitoring
+
+SUPERVISOR_CONF="/etc/config/supervisor"
+UCI="uci"
+LOG_TAG="router-supervisor"
+
+log() {
+	logger -t "$LOG_TAG" "$1"
+}
+
+# Define critical services and their dependencies
+check_service_health() {
+	service=$1
+	
+	case "$service" in
+		firewall)
+			if /etc/init.d/firewall status >/dev/null 2>&1; then
+				# Check if nftables is running
+				if command -v nft >/dev/null 2>&1; then
+					if nft list ruleset >/dev/null 2>&1; then
+						return 0
+					else
+						log "nftables not responding"
+						return 1
+					fi
+				fi
+				return 0
+			else
+				return 1
+			fi
+			;;
+		dnsmasq)
+			if /etc/init.d/dnsmasq status >/dev/null 2>&1; then
+				# Check if process is listening
+				if netstat -uln 2>/dev/null | grep -q ":53 "; then
+					return 0
+				else
+					log "dnsmasq not listening on port 53"
+					return 1
+				fi
+			else
+				return 1
+			fi
+			;;
+		network)
+			if /etc/init.d/network status >/dev/null 2>&1; then
+				# Check if netifd is running
+				if pgrep -f netifd >/dev/null 2>&1; then
+					return 0
+				else
+					log "netifd not running"
+					return 1
+				fi
+			else
+				return 1
+			fi
+			;;
+		*)
+			if /etc/init.d/$service status >/dev/null 2>&1; then
+				return 0
+			else
+				return 1
+			fi
+			;;
+	esac
+}
+
+restart_service() {
+	service=$1
+	log "Restarting service: $service"
+	/etc/init.d/$service restart
+	if [ $? -eq 0 ]; then
+		log "Service $service restarted successfully"
+		return 0
+	else
+		log "Service $service restart failed"
+		return 1
+	fi
+}
+
+check_critical_services() {
+	failed=0
+	
+	for service in network firewall dnsmasq uhttpd rpcd; do
+		if ! check_service_health "$service"; then
+			log "Critical service $service unhealthy, attempting restart"
+			if restart_service "$service"; then
+				log "Service $service recovered"
+			else
+				log "Service $service failed to recover"
+				failed=1
+			fi
+		fi
+	done
+	
+	return $failed
+}
+
+main() {
+	case "${1:-}" in
+		check)
+			check_critical_services
+			;;
+		check-only)
+			# Just check, don't restart
+			failed=0
+			for service in network firewall dnsmasq uhttpd rpcd; do
+				if ! check_service_health "$service"; then
+					log "Service $service unhealthy (no auto-restart)"
+					failed=1
+				fi
+			done
+			exit $failed
+			;;
+		*)
+			echo "RouterOS Service Supervisor"
+			echo ""
+			echo "Usage: $0 {check|check-only}"
+			echo ""
+			echo "Commands:"
+			echo "  check        Check critical services and restart if unhealthy"
+			echo "  check-only   Check critical services without auto-restart"
+			exit 1
+			;;
+	esac
+}
+
+main "$@"

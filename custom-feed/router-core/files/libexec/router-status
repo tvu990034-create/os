@@ -1,0 +1,91 @@
+#!/bin/sh
+# RouterOS operational status report
+
+UCI_GET="uci -q get"
+REPORT_FILE="/tmp/routeros-status.txt"
+
+echo "RouterOS Operational Status Report" > "$REPORT_FILE"
+echo "Generated: $(date)" >> "$REPORT_FILE"
+echo "=================================" >> "$REPORT_FILE"
+echo "" >> "$REPORT_FILE"
+
+# System information
+echo "=== System Information ===" >> "$REPORT_FILE"
+echo "Hostname: $($UCI_GET system.@system[0].hostname 2>/dev/null || echo 'unknown')" >> "$REPORT_FILE"
+echo "Uptime: $(uptime 2>/dev/null || echo 'unknown')" >> "$REPORT_FILE"
+echo "" >> "$REPORT_FILE"
+
+# Network interfaces
+echo "=== Network Interfaces ===" >> "$REPORT_FILE"
+ip link show 2>/dev/null | grep -E "^[0-9]+:" | while read line; do
+	iface=$(echo "$line" | awk '{print $2}' | tr -d ':')
+	state=$(ip link show "$iface" 2>/dev/null | grep -oP '(?<=state )\w+' || echo "unknown")
+	echo "$iface: $state" >> "$REPORT_FILE"
+done
+echo "" >> "$REPORT_FILE"
+
+# LAN configuration
+echo "=== LAN Configuration ===" >> "$REPORT_FILE"
+lan_device=$($UCI_GET network.lan.device 2>/dev/null || echo "unknown")
+lan_ip=$($UCI_GET network.lan.ipaddr 2>/dev/null || echo "unknown")
+echo "Device: $lan_device" >> "$REPORT_FILE"
+echo "IP Address: $lan_ip" >> "$REPORT_FILE"
+echo "" >> "$REPORT_FILE"
+
+# WAN configuration
+echo "=== WAN Configuration ===" >> "$REPORT_FILE"
+if $UCI_GET network.wan >/dev/null 2>&1; then
+	wan_device=$($UCI_GET network.wan.device 2>/dev/null || echo "unknown")
+	wan_proto=$($UCI_GET network.wan.proto 2>/dev/null || echo "unknown")
+	echo "Device: $wan_device" >> "$REPORT_FILE"
+	echo "Protocol: $wan_proto" >> "$REPORT_FILE"
+else
+	echo "WAN not configured" >> "$REPORT_FILE"
+fi
+echo "" >> "$REPORT_FILE"
+
+# Service status
+echo "=== Service Status ===" >> "$REPORT_FILE"
+for service in firewall dnsmasq odhcpd uhttpd rpcd dropbear; do
+	if [ -x "/etc/init.d/$service" ]; then
+		if /etc/init.d/$service status >/dev/null 2>&1; then
+			echo "$service: RUNNING" >> "$REPORT_FILE"
+		else
+			echo "$service: STOPPED" >> "$REPORT_FILE"
+		fi
+	else
+		echo "$service: NOT INSTALLED" >> "$REPORT_FILE"
+	fi
+done
+echo "" >> "$REPORT_FILE"
+
+# DHCP leases
+echo "=== DHCP Leases ===" >> "$REPORT_FILE"
+if [ -f /tmp/dhcp.leases ]; then
+	lease_count=$(wc -l < /tmp/dhcp.leases)
+	echo "Active leases: $lease_count" >> "$REPORT_FILE"
+else
+	echo "No lease file found" >> "$REPORT_FILE"
+fi
+echo "" >> "$REPORT_FILE"
+
+# RouterOS package versions
+echo "=== RouterOS Package Versions ===" >> "$REPORT_FILE"
+for pkg in router-core router-net router-ui; do
+	version=$(opkg info "$pkg" 2>/dev/null | grep "^Version:" | awk '{print $2}' || echo "not installed")
+	echo "$pkg: $version" >> "$REPORT_FILE"
+done
+echo "" >> "$REPORT_FILE"
+
+# Disk usage
+echo "=== Storage ===" >> "$REPORT_FILE"
+df -h 2>/dev/null | grep -E "^(/dev|overlay)" >> "$REPORT_FILE"
+echo "" >> "$REPORT_FILE"
+
+# Memory
+echo "=== Memory ===" >> "$REPORT_FILE"
+free -h 2>/dev/null >> "$REPORT_FILE"
+echo "" >> "$REPORT_FILE"
+
+echo "Report saved to $REPORT_FILE"
+cat "$REPORT_FILE"

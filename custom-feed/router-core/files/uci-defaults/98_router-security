@@ -1,5 +1,5 @@
 #!/bin/sh
-# Set secure defaults and ensure root password is set on first boot
+# Set secure defaults for RouterOS
 
 set -eu
 
@@ -12,33 +12,71 @@ if ! command -v uci >/dev/null 2>&1; then
 	exit 0
 }
 
-# Ensure RPC password is set for LuCI access
-if ! uci -q get rpcd.@rpcd[0].socket >/dev/null 2>&1; then
+CHANGED=0
+
+# Ensure RPC daemon has reasonable timeout
+if uci -q get rpcd.@rpcd[0].socket >/dev/null 2>&1; then
+	current_timeout=$(uci -q get rpcd.@rpcd[0].timeout 2>/dev/null || echo "30")
+	if [ "$current_timeout" = "0" ] || [ "$current_timeout" = "" ]; then
+		uci set rpcd.@rpcd[0].timeout='30'
+		CHANGED=1
+		log "set RPC timeout to 30 seconds"
+	fi
+else
 	uci set rpcd.@rpcd[0].socket='0'
 	uci set rpcd.@rpcd[0].timeout='30'
+	CHANGED=1
+	log "configured RPC daemon defaults"
 fi
 
-# Ensure uhttpd is listening only on LAN by default
+# Restrict uhttpd to not listen on all interfaces by default
+# Get the actual LAN IP if configured, otherwise let OpenWrt handle defaults
 if uci -q get uhttpd.main.listen_http >/dev/null 2>&1; then
-	current_listen=$(uci -q get uhttpd.main.listen_http)
+	current_listen=$(uci -q get uhttpd.main.listen_http 2>/dev/null || echo "")
+	# If listening on all interfaces, try to restrict to LAN
 	if [ "$current_listen" = "0.0.0.0:80" ] || [ "$current_listen" = "0.0.0.0:8080" ]; then
-		uci set uhttpd.main.listen_http='192.168.1.1:80'
-		log "restricted uhttpd to LAN address"
+		lan_ip=$(uci -q get network.lan.ipaddr 2>/dev/null | head -1 | cut -d'/' -f1)
+		if [ -n "$lan_ip" ] && [ "$lan_ip" != "" ]; then
+			uci set uhttpd.main.listen_http="$lan_ip:80"
+			CHANGED=1
+			log "restricted uhttpd to LAN address $lan_ip"
+		else
+			# If LAN IP not configured yet, bind to loopback only
+			uci set uhttpd.main.listen_http='127.0.0.1:80'
+			CHANGED=1
+			log "restricted uhttpd to loopback until LAN is configured"
+		fi
 	fi
 fi
 
-# Disable remote SSH by default for security
+# Configure SSH with secure defaults: disable password auth, require key-based auth
 if uci -q get dropbear.@dropbear[0]. >/dev/null 2>&1; then
-	uci set dropbear.@dropbear[0].PasswordAuth='on'
-	uci set dropbear.@dropbear[0].RootPasswordAuth='on'
+	# Disable password authentication (require SSH keys)
+	uci set dropbear.@dropbear[0].PasswordAuth='off'
+	# Disable root password auth (require SSH keys)
+	uci set dropbear.@dropbear[0].RootPasswordAuth='off'
+	# Ensure port is standard
 	uci set dropbear.@dropbear[0].Port='22'
-	# Note: SSH access can be enabled through LuCI after root password is set
+	CHANGED=1
+	log "configured SSH to require key-based authentication (password auth disabled)"
+else
+	# Create dropbear config if it doesn't exist
+	uci add dropbear dropbear
+	uci set dropbear.@dropbear[0].PasswordAuth='off'
+	uci set dropbear.@dropbear[0].RootPasswordAuth='off'
+	uci set dropbear.@dropbear[0].Port='22'
+	CHANGED=1
+	log "created SSH config with key-based authentication"
 fi
 
-# Commit changes
-uci commit rpcd
-uci commit uhttpd
-uci commit dropbear
+# Commit only if changes were made
+if [ "$CHANGED" -eq 1 ]; then
+	uci commit rpcd
+	uci commit uhttpd
+	uci commit dropbear
+	log "RouterOS security defaults applied"
+else
+	log "RouterOS security defaults already configured"
+fi
 
-log "RouterOS security defaults applied"
 exit 0

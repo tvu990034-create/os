@@ -49,12 +49,7 @@ topology for an embedded router.
 The shared overlay therefore contains only service defaults that do not define
 physical port topology (currently DHCP and firewall). RouterOS first-boot
 defaults preserve the generated interfaces and switch topology. They brand
-only untouched OpenWrt hostname/timezone defaults. Any explicitly selected
-RouterOS generic network template remains a separate opt-in compatibility
-path; it is not installed by the normal build.
-
-Files under custom/configs/*/network.conf are reference templates only. They
-are not deployed by setup.sh or build-platform.sh.
+only untouched OpenWrt hostname/timezone defaults.
 
 ## Build commands
 

@@ -1,0 +1,82 @@
+#!/bin/sh
+# RouterOS system monitoring utility
+
+LOG_TAG="router-monitor-system"
+
+log() {
+	logger -t "$LOG_TAG" "$1"
+}
+
+show_cpu_usage() {
+	echo "=== CPU Usage ==="
+	# Read CPU stats from /proc/stat
+	cpu_usage=$(top -bn1 | grep "Cpu(s)" | sed "s/.*, *\([0-9.]*\)%* id.*/\1/" | awk '{print 100 - $1"%"}')
+	echo "CPU Usage: $cpu_usage"
+}
+
+show_memory_usage() {
+	echo "=== Memory Usage ==="
+	free -h 2>/dev/null || echo "Memory info unavailable"
+}
+
+show_disk_usage() {
+	echo "=== Disk Usage ==="
+	df -h 2>/dev/null || echo "Disk info unavailable"
+}
+
+show_process_count() {
+	echo "=== Process Count ==="
+	ps | wc -l
+}
+
+show_uptime() {
+	echo "=== System Uptime ==="
+	uptime 2>/dev/null || echo "Uptime unavailable"
+}
+
+main() {
+	case "${1:-}" in
+		cpu)
+			show_cpu_usage
+			;;
+		memory)
+			show_memory_usage
+			;;
+		disk)
+			show_disk_usage
+			;;
+		processes)
+			show_process_count
+			;;
+		uptime)
+			show_uptime
+			;;
+		all)
+			show_uptime
+			echo ""
+			show_cpu_usage
+			echo ""
+			show_memory_usage
+			echo ""
+			show_disk_usage
+			echo ""
+			show_process_count
+			;;
+		*)
+			echo "RouterOS System Monitoring"
+			echo ""
+			echo "Usage: $0 <command>"
+			echo ""
+			echo "Commands:"
+			echo "  cpu          Show CPU usage"
+			echo "  memory       Show memory usage"
+			echo "  disk         Show disk usage"
+			echo "  processes    Show process count"
+			echo "  uptime       Show system uptime"
+			echo "  all          Show all system metrics"
+			exit 1
+			;;
+	esac
+}
+
+main "$@"

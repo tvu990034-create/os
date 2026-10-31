@@ -1,0 +1,64 @@
+#!/bin/sh
+# RouterOS firewall validation utility
+
+UCI="uci"
+LOG_TAG="router-firewall-validate"
+
+log() {
+	logger -t "$LOG_TAG" "$1"
+}
+
+validate_firewall_config() {
+	# Check if firewall4 is installed
+	if ! command -v nft >/dev/null 2>&1; then
+		log "nftables not available"
+		return 1
+	fi
+
+	# Check if firewall config exists
+	if ! $UCI -q show firewall >/dev/null 2>&1; then
+		log "firewall UCI config missing"
+		return 1
+	fi
+
+	# Check for required zones
+	lan_zone=$($UCI -q get firewall.lan.name 2>/dev/null || echo "")
+	wan_zone=$($UCI -q get firewall.wan.name 2>/dev/null || echo "")
+
+	if [ -z "$lan_zone" ]; then
+		log "LAN zone not configured"
+		return 1
+	fi
+
+	if [ -z "$wan_zone" ]; then
+		log "WAN zone not configured"
+		return 1
+	fi
+
+	# Check nftables ruleset
+	if nft list ruleset >/dev/null 2>&1; then
+		log "nftables ruleset is valid"
+	else
+		log "nftables ruleset validation failed"
+		return 1
+	fi
+
+	log "firewall configuration validated"
+	return 0
+}
+
+main() {
+	case "${1:-}" in
+		validate)
+			validate_firewall_config
+			;;
+		*)
+			echo "RouterOS Firewall Validation"
+			echo ""
+			echo "Usage: $0 validate"
+			exit 1
+			;;
+	esac
+}
+
+main "$@"

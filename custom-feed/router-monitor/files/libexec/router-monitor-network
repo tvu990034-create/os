@@ -1,0 +1,63 @@
+#!/bin/sh
+# RouterOS network monitoring utility
+
+LOG_TAG="router-monitor-network"
+
+log() {
+	logger -t "$LOG_TAG" "$1"
+}
+
+show_interface_stats() {
+	echo "=== Interface Statistics ==="
+	for iface in $(ip link show 2>/dev/null | grep -E "^[0-9]+:" | awk '{print $2}' | tr -d ':'); do
+		echo "Interface: $iface"
+		ip -s link show "$iface" 2>/dev/null | grep -A 5 "$iface" || true
+	done
+}
+
+show_connection_count() {
+	echo "=== Connection Count ==="
+	# Count established TCP connections
+	conn_count=$(cat /proc/net/tcp 2>/dev/null | wc -l)
+	echo "TCP connections: $conn_count"
+}
+
+show_bandwidth() {
+	iface=${1:-}
+	
+	if [ -z "$iface" ]; then
+		echo "Usage: $0 bandwidth <interface>"
+		exit 1
+	fi
+	
+	echo "=== Bandwidth for $iface ==="
+	# Simple byte count from /proc/net/dev
+	cat /proc/net/dev 2>/dev/null | grep "$iface" || echo "Interface not found"
+}
+
+main() {
+	case "${1:-}" in
+		interfaces)
+			show_interface_stats
+			;;
+		connections)
+			show_connection_count
+			;;
+		bandwidth)
+			show_bandwidth "$2"
+			;;
+		*)
+			echo "RouterOS Network Monitoring"
+			echo ""
+			echo "Usage: $0 <command> [args]"
+			echo ""
+			echo "Commands:"
+			echo "  interfaces    Show interface statistics"
+			echo "  connections   Show connection count"
+			echo "  bandwidth     Show bandwidth for interface"
+			exit 1
+			;;
+	esac
+}
+
+main "$@"

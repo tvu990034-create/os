@@ -1,0 +1,72 @@
+#!/bin/sh
+# RouterOS routing diagnostics utility
+
+LOG_TAG="router-routing-diagnostics"
+
+log() {
+	logger -t "$LOG_TAG" "$1"
+}
+
+test_connectivity() {
+	target=${1:-8.8.8.8}
+	
+	echo "=== Testing connectivity to $target ==="
+	if ping -c 3 -W 2 "$target" >/dev/null 2>&1; then
+		echo "Connectivity test: PASSED"
+		return 0
+	else
+		echo "Connectivity test: FAILED"
+		return 1
+	fi
+}
+
+check_route_to_host() {
+	host=$1
+	if [ -z "$host" ]; then
+		echo "Usage: $0 route-to <host>"
+		exit 1
+	fi
+	
+	echo "=== Route to $host ==="
+	ip route get "$host" 2>/dev/null || echo "No route found"
+}
+
+check_dns_resolution() {
+	host=${1:-www.google.com}
+	
+	echo "=== DNS resolution for $host ==="
+	if nslookup "$host" >/dev/null 2>&1; then
+		echo "DNS resolution: PASSED"
+		return 0
+	else
+		echo "DNS resolution: FAILED"
+		return 1
+	fi
+}
+
+main() {
+	case "${1:-}" in
+		ping)
+			test_connectivity "$2"
+			;;
+		route-to)
+			check_route_to_host "$2"
+			;;
+		dns)
+			check_dns_resolution "$2"
+			;;
+		*)
+			echo "RouterOS Routing Diagnostics"
+			echo ""
+			echo "Usage: $0 <command> [args]"
+			echo ""
+			echo "Commands:"
+			echo "  ping          Test connectivity (default: 8.8.8.8)"
+			echo "  route-to      Show route to specific host"
+			echo "  dns           Test DNS resolution (default: www.google.com)"
+			exit 1
+			;;
+	esac
+}
+
+main "$@"

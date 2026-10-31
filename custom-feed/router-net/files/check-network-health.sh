@@ -56,7 +56,7 @@ check_interface() {
 	fi
 	
 	if ip link show "$iface" >/dev/null 2>&1; then
-		state=$(ip link show "$iface" 2>/dev/null | grep -oP '(?<=state )\w+' || echo "unknown")
+		state=$(ip link show "$iface" 2>/dev/null | sed -n 's/.*state \([A-Z]*\).*/\1/p' || echo "unknown")
 		if [ "$state" = "UP" ] || [ "$state" = "UNKNOWN" ]; then
 			log "Interface $iface is up (state: $state)"
 			return 0

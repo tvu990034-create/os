@@ -6,7 +6,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=router-net
-PKG_RELEASE:=5
+PKG_RELEASE:=6
 PKG_LICENSE:=GPL-2.0-only
 PKG_MAINTAINER:=Router OS Project
 
@@ -16,7 +16,7 @@ define Package/router-net
   SECTION:=net
   CATEGORY:=Network
   TITLE:=RouterOS Networking Extensions
-  DEPENDS:=+procd +uci +router-dsa-runtime
+  DEPENDS:=+procd +uci
   DEFAULT:=y if TARGET_x86||TARGET_armsr
 endef
 

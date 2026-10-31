@@ -1,0 +1,129 @@
+name: RouterOS full firmware build and boot test
+
+on:
+  push:
+    branches: [foundation/ready-for-dsa]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: routeros-build-boot-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  firmware-build:
+    name: Build x86_64 firmware
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+
+    steps:
+      - name: Check out RouterOS
+        uses: actions/checkout@v4
+
+      - name: Install OpenWrt build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential ccache ecj fastjar file g++ gawk gettext git \
+            java-runtime default-jre-headless libncurses5-dev libncursesw5-dev libssl-dev \
+            python3 python3-distutils python3-setuptools python3-yaml rsync subversion swig \
+            xsltproc zlib1g-dev
+
+      - name: Setup OpenWrt build tree
+        run: |
+          ./setup.sh
+
+      - name: Build x86_64 firmware
+        working-directory: openwrt
+        env:
+          JOBS: 2
+        run: |
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+          cp ../config/x86_64.config .config
+          make defconfig
+          make download -j"$JOBS"
+          make -j"$JOBS" V=s
+
+      - name: Verify firmware output
+        working-directory: openwrt
+        run: |
+          OUTPUT_DIR="bin/targets/x86/64"
+          [ -d "$OUTPUT_DIR" ] || { echo "Output directory missing"; exit 1; }
+          [ -f "$OUTPUT_DIR/openwrt-25.12.6-x86-64-generic-ext4-combined.img.gz" ] || { echo "Combined image missing"; exit 1; }
+          [ -f "$OUTPUT_DIR/openwrt-25.12.6-x86-64-generic-kernel.bin" ] || { echo "Kernel missing"; exit 1; }
+          [ -f "$OUTPUT_DIR/openwrt-25.12.6-x86-64-generic-rootfs.tar.gz" ] || { echo "Rootfs missing"; exit 1; }
+          echo "Firmware artifacts verified"
+
+      - name: Upload firmware artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: routeros-x86_64-firmware
+          path: openwrt/bin/targets/x86/64/
+          retention-days: 7
+
+      - name: Upload build logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: routeros-x86_64-build-logs
+          path: openwrt/logs/
+          retention-days: 7
+
+  qemu-boot-test:
+    name: QEMU boot test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    needs: firmware-build
+
+    steps:
+      - name: Check out RouterOS
+        uses: actions/checkout@v4
+
+      - name: Download firmware artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: routeros-x86_64-firmware
+          path: firmware/
+
+      - name: Install QEMU
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y qemu-system-x86 qemu-utils
+
+      - name: Decompress firmware image
+        run: |
+          gunzip -k firmware/openwrt-25.12.6-x86-64-generic-ext4-combined.img.gz
+          ls -lh firmware/
+
+      - name: Boot in QEMU with timeout
+        timeout-minutes: 5
+        run: |
+          timeout 120 qemu-system-x86_64 \
+            -nographic \
+            -m 512M \
+            -drive file=firmware/openwrt-25.12.6-x86-64-generic-ext4-combined.img,format=raw \
+            -net nic,model=e1000 \
+            -net user \
+            -serial stdout 2>&1 | tee /tmp/qemu-serial.log || true
+
+          # Check if we saw OpenWrt boot
+          if grep -q "OpenWrt" /tmp/qemu-serial.log; then
+            echo "QEMU boot test: PASSED - OpenWrt detected"
+          else
+            echo "QEMU boot test: FAILED - OpenWrt not detected in serial output"
+            cat /tmp/qemu-serial.log
+            exit 1
+          fi
+
+      - name: Upload QEMU serial log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qemu-serial-log
+          path: /tmp/qemu-serial.log
+          if-no-files-found: ignore
+          retention-days: 7

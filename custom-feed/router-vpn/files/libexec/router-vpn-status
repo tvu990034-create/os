@@ -1,0 +1,65 @@
+#!/bin/sh
+# RouterOS VPN status utility
+
+LOG_TAG="router-vpn-status"
+
+show_wireguard_interfaces() {
+	echo "=== WireGuard Interfaces ==="
+	wg show 2>/dev/null || echo "No WireGuard interfaces configured"
+}
+
+show_wireguard_status() {
+	iface=${1:-}
+	
+	if [ -n "$iface" ]; then
+		echo "=== WireGuard Status for $iface ==="
+		wg show "$iface" 2>/dev/null || echo "Interface $iface not found or not configured"
+	else
+		show_wireguard_interfaces
+	fi
+}
+
+show_vpn_peers() {
+	iface=${1:-}
+	
+	if [ -n "$iface" ]; then
+		echo "=== Peers for $iface ==="
+		wg show "$iface" peers 2>/dev/null || echo "No peers configured"
+	else
+		echo "=== All VPN Peers ==="
+		wg show 2>/dev/null | grep -A 10 "peer:" || echo "No peers configured"
+	fi
+}
+
+main() {
+	case "${1:-}" in
+		interfaces)
+			show_wireguard_interfaces
+			;;
+		status)
+			show_wireguard_status "$2"
+			;;
+		peers)
+			show_vpn_peers "$2"
+			;;
+		all)
+			show_wireguard_interfaces
+			echo ""
+			show_vpn_peers
+			;;
+		*)
+			echo "RouterOS VPN Status"
+			echo ""
+			echo "Usage: $0 <command> [args]"
+			echo ""
+			echo "Commands:"
+			echo "  interfaces    Show WireGuard interfaces"
+			echo "  status [iface] Show interface status"
+			echo "  peers [iface]  Show VPN peers"
+			echo "  all           Show all VPN information"
+			exit 1
+			;;
+	esac
+}
+
+main "$@"

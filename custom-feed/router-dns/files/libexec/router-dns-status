@@ -1,0 +1,85 @@
+#!/bin/sh
+# RouterOS DNS status utility
+
+UCI="uci"
+LOG_TAG="router-dns-status"
+
+show_dns_servers() {
+	echo "=== DNS Servers ==="
+	$UCI show dhcp 2>/dev/null | grep "server\|option" | grep -E "dhcp|server" || echo "No custom DNS servers configured"
+	
+	# Show system DNS
+	echo ""
+	echo "System DNS Servers:"
+	cat /etc/resolv.conf 2>/dev/null || echo "Unable to read resolv.conf"
+}
+
+show_dns_caches() {
+	echo "=== DNS Cache ==="
+	# dnsmasq cache statistics
+	if command -v dnsmasq >/dev/null 2>&1; then
+		killall -USR1 dnsmasq 2>/dev/null || true
+		sleep 1
+		cat /var/run/dnsmasq/dnsmasq.cache 2>/dev/null | head -20 || echo "Cache statistics unavailable"
+	else
+		echo "dnsmasq not available"
+	fi
+}
+
+show_local_domains() {
+	echo "=== Local Domains ==="
+	$UCI show dhcp 2>/dev/null | grep -E "domain|dhcp.@domain" || echo "No local domains configured"
+}
+
+test_dns_resolution() {
+	host=${1:-www.google.com}
+	
+	echo "=== Testing DNS Resolution for $host ==="
+	if nslookup "$host" >/dev/null 2>&1; then
+		echo "DNS resolution: PASSED"
+		nslookup "$host"
+		return 0
+	else
+		echo "DNS resolution: FAILED"
+		return 1
+	fi
+}
+
+main() {
+	case "${1:-}" in
+		servers)
+			show_dns_servers
+			;;
+		cache)
+			show_dns_caches
+			;;
+		domains)
+			show_local_domains
+			;;
+		test)
+			test_dns_resolution "$2"
+			;;
+		all)
+			show_dns_servers
+			echo ""
+			show_local_domains
+			echo ""
+			test_dns_resolution
+			;;
+		*)
+			echo "RouterOS DNS Status"
+			echo ""
+			echo "Usage: $0 <command> [args]"
+			echo ""
+			echo "Commands:"
+			echo "  servers      Show DNS servers"
+			echo "  cache        Show DNS cache"
+			echo "  domains      Show local domains"
+			echo "  test         Test DNS resolution"
+			echo "  all          Show all DNS information"
+			exit 1
+			;;
+	esac
+}
+
+main "$@"

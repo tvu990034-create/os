@@ -1,0 +1,72 @@
+#!/bin/sh
+# RouterOS QoS status utility
+
+LOG_TAG="router-qos-status"
+
+show_qdiscs() {
+	echo "=== Active QoS Queues ==="
+	tc qdisc show 2>/dev/null || echo "No qdiscs configured"
+}
+
+show_classes() {
+	echo "=== Traffic Classes ==="
+	tc class show 2>/dev/null || echo "No classes configured"
+}
+
+show_filters() {
+	echo "=== Traffic Filters ==="
+	tc filter show 2>/dev/null || echo "No filters configured"
+}
+
+show_statistics() {
+	iface=${1:-}
+	
+	if [ -n "$iface" ]; then
+		echo "=== Statistics for $iface ==="
+		tc -s qdisc show dev "$iface" 2>/dev/null || echo "No statistics available"
+	else
+		echo "=== Statistics for All Interfaces ==="
+		tc -s qdisc show 2>/dev/null || echo "No statistics available"
+	fi
+}
+
+main() {
+	case "${1:-}" in
+		qdiscs)
+			show_qdiscs
+			;;
+		classes)
+			show_classes
+			;;
+		filters)
+			show_filters
+			;;
+		stats)
+			show_statistics "$2"
+			;;
+		all)
+			show_qdiscs
+			echo ""
+			show_classes
+			echo ""
+			show_filters
+			echo ""
+			show_statistics
+			;;
+		*)
+			echo "RouterOS QoS Status"
+			echo ""
+			echo "Usage: $0 <command> [args]"
+			echo ""
+			echo "Commands:"
+			echo "  qdiscs       Show active qdiscs"
+			echo "  classes       Show traffic classes"
+			echo "  filters       Show traffic filters"
+			echo "  stats [iface] Show statistics"
+			echo "  all           Show all QoS information"
+			exit 1
+			;;
+	esac
+}
+
+main "$@"

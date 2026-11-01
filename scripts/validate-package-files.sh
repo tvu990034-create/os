@@ -116,6 +116,104 @@ for file in $DEVICE_FILES; do
 	fi
 done
 
+# Check router-qos files
+QOS_FILES="
+custom-feed/router-qos/files/libexec/router-qos-validate
+custom-feed/router-qos/files/libexec/router-qos-apply
+custom-feed/router-qos/files/libexec/router-qos-status
+"
+
+for file in $QOS_FILES; do
+	if [ -f "$ROOT_DIR/$file" ]; then
+		pass "router-qos: $file"
+	else
+		fail "router-qos missing: $file"
+	fi
+done
+
+# Check router-vpn files
+VPN_FILES="
+custom-feed/router-vpn/files/libexec/router-vpn-validate
+custom-feed/router-vpn/files/libexec/router-vpn-status
+"
+
+for file in $VPN_FILES; do
+	if [ -f "$ROOT_DIR/$file" ]; then
+		pass "router-vpn: $file"
+	else
+		fail "router-vpn missing: $file"
+	fi
+done
+
+# Check router-dns files
+DNS_FILES="
+custom-feed/router-dns/files/libexec/router-dns-validate
+custom-feed/router-dns/files/libexec/router-dns-status
+"
+
+for file in $DNS_FILES; do
+	if [ -f "$ROOT_DIR/$file" ]; then
+		pass "router-dns: $file"
+	else
+		fail "router-dns missing: $file"
+	fi
+done
+
+# Check router-dhcp files
+DHCP_FILES="
+custom-feed/router-dhcp/files/libexec/router-dhcp-validate
+custom-feed/router-dhcp/files/libexec/router-dhcp-status
+"
+
+for file in $DHCP_FILES; do
+	if [ -f "$ROOT_DIR/$file" ]; then
+		pass "router-dhcp: $file"
+	else
+		fail "router-dhcp missing: $file"
+	fi
+done
+
+# Check router-api files
+API_FILES="
+custom-feed/router-api/files/acl.d/router-api-acl.json
+custom-feed/router-api/files/router-api
+"
+
+for file in $API_FILES; do
+	if [ -f "$ROOT_DIR/$file" ]; then
+		pass "router-api: $file"
+	else
+		fail "router-api missing: $file"
+	fi
+done
+
+# Check router-backup files
+BACKUP_FILES="
+custom-feed/router-backup/files/libexec/router-backup
+custom-feed/router-backup/files/cron.d/router-backup-cron
+"
+
+for file in $BACKUP_FILES; do
+	if [ -f "$ROOT_DIR/$file" ]; then
+		pass "router-backup: $file"
+	else
+		fail "router-backup missing: $file"
+	fi
+done
+
+# Check router-upgrade files
+UPGRADE_FILES="
+custom-feed/router-upgrade/files/libexec/router-upgrade
+"
+
+for file in $UPGRADE_FILES; do
+	if [ -f "$ROOT_DIR/$file" ]; then
+		pass "router-upgrade: $file"
+	else
+		fail "router-upgrade missing: $file"
+	fi
+done
+
 if [ "$FAILED" -eq 0 ]; then
 	echo "=== Package file existence validation PASSED ==="
 	exit 0

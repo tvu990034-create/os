@@ -1,0 +1,34 @@
+{
+	"router-api-read": {
+		"description": "Read RouterOS system and network information",
+		"read": {
+			"uci": [
+				"system",
+				"network",
+				"firewall",
+				"dhcp"
+			],
+			"file": {
+				"/usr/libexec/router-core/router-status": "read",
+				"/usr/libexec/router-net/check-network-health.sh": "read",
+				"/usr/libexec/router-monitor/router-monitor-system": "read",
+				"/usr/libexec/router-monitor/router-monitor-network": "read",
+				"/usr/libexec/router-device/router-device-info": "read"
+			}
+		}
+	},
+	"router-api-write": {
+		"description": "Write RouterOS configuration",
+		"write": {
+			"uci": [
+				"system",
+				"network",
+				"firewall",
+				"dhcp"
+			]
+		}
+	},
+	"unauthenticated": {
+		"description": "Public read access for login page"
+	}
+}

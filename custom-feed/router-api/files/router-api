@@ -1,0 +1,37 @@
+#!/usr/bin/ubus
+# RouterOS Management API RPC
+
+. /usr/share/libubox/jshn.sh
+
+case "$1" in
+	call)
+		case "$2" in
+			get_system_info)
+				/usr/libexec/router-core/router-status
+				;;
+			get_network_status)
+				/usr/libexec/router-net/check-network-health.sh
+				;;
+			get_monitoring)
+				/usr/libexec/router-monitor/router-monitor-system all
+				;;
+			get_device_info)
+				/usr/libexec/router-device/router-device-info all
+				;;
+			backup_config)
+				/usr/libexec/router-core/router-backup backup
+				;;
+			list_backups)
+				/usr/libexec/router-core/router-backup list
+				;;
+			*)
+				echo "Unknown method: $2"
+				exit 1
+				;;
+		esac
+		;;
+	*)
+		echo "Usage: $0 call <method>"
+		exit 1
+		;;
+esac

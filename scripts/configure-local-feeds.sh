@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # Configure OpenWrt to use local source repositories
 # This script creates a feeds.conf that prioritizes local feeds with fallback to remote
 
@@ -60,7 +60,7 @@ verify_git_repo() {
 	printf '    Remote: %s\n' "$remote"
 	printf '    Branch: %s\n' "$branch"
 	printf '    Commit: %s\n' "${commit:0:8}"
-	printf '    Clone type: %s\n' "$clone_type
+	printf '    Clone type: %s\n' "$clone_type"
 
 	return 0
 }
@@ -112,15 +112,15 @@ cat > "$FEEDS_CONF" <<EOF
 
 EOF
 
-# Add verified local feeds
+# Add verified local feeds (use src-link for local working-tree feeds)
 if $PACKAGES_VERIFIED; then
-	printf 'src-git packages %s\n' "$PACKAGES_FEED" >> "$FEEDS_CONF"
+	printf 'src-link packages %s\n' "$PACKAGES_FEED" >> "$FEEDS_CONF"
 fi
 if $LUCI_VERIFIED; then
-	printf 'src-git luci %s\n' "$LUCI_FEED" >> "$FEEDS_CONF"
+	printf 'src-link luci %s\n' "$LUCI_FEED" >> "$FEEDS_CONF"
 fi
 if $ROUTING_VERIFIED; then
-	printf 'src-git routing %s\n' "$ROUTING_FEED" >> "$FEEDS_CONF"
+	printf 'src-link routing %s\n' "$ROUTING_FEED" >> "$FEEDS_CONF"
 fi
 
 # Add RouterOS custom feed

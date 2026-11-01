@@ -38,9 +38,9 @@ RouterOS uses a local feed configuration strategy with configurable source root:
    - This ensures CI can still work without local repositories
 
 2. **Local feeds are selectively added**:
-   - `src-git packages $ROUTEROS_SOURCE_ROOT/packages` - Added only if verified Git repository
-   - `src-git luci $ROUTEROS_SOURCE_ROOT/luci` - Added only if verified Git repository
-   - `src-git routing $ROUTEROS_SOURCE_ROOT/routing` - Added only if verified Git repository
+   - `src-link packages $ROUTEROS_SOURCE_ROOT/packages` - Added only if verified Git repository
+   - `src-link luci $ROUTEROS_SOURCE_ROOT/luci` - Added only if verified Git repository
+   - `src-link routing $ROUTEROS_SOURCE_ROOT/routing` - Added only if verified Git repository
    - `src-link routeros $CUSTOM_FEED_DIR` - RouterOS custom feed (always required)
 
 3. **Remote feeds remain as fallback**:
@@ -65,10 +65,10 @@ The generated `openwrt/feeds.conf` varies based on which local repositories are 
 # Local feeds are prioritized for development and reproducibility
 # Remote feeds are kept as fallback for missing packages
 
-# Local feeds (prioritized)
-src-git packages /mnt/f/router-os-source/packages
-src-git luci /mnt/f/router-os-source/luci
-src-git routing /mnt/f/router-os-source/routing
+# Local feeds (prioritized) - use src-link for local working-tree feeds
+src-link packages /mnt/f/router-os-source/packages
+src-link luci /mnt/f/router-os-source/luci
+src-link routing /mnt/f/router-os-source/routing
 
 # RouterOS custom feed
 src-link routeros /path/to/router-os-source/custom-feed

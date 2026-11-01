@@ -48,7 +48,7 @@ DEFAULTS_LINE="src-include defaults feeds.conf.default"
 # Check if feeds.conf already exists and is configured by RouterOS
 if [ -f "$FEEDS_CONF" ]; then
 	# If feeds.conf exists and contains local feeds, assume it's already configured
-	if grep -q "src-git packages $ROUTEROS_SOURCE_ROOT/packages" "$FEEDS_CONF" 2>/dev/null; then
+	if grep -q "src-link packages $ROUTEROS_SOURCE_ROOT/packages" "$FEEDS_CONF" 2>/dev/null; then
 		printf 'Local feeds already configured in %s\n' "$FEEDS_CONF"
 	else
 		# Old-style configuration - require manual update
@@ -92,11 +92,11 @@ else
 # Local feeds are prioritized for development and reproducibility
 # Remote feeds are kept as fallback for missing packages
 
-# Local feeds (prioritized)
+# Local feeds (prioritized) - use src-link for local working-tree feeds
 EOF
-		[ -d "$ROUTEROS_SOURCE_ROOT/packages/.git" ] && printf 'src-git packages %s/packages\n' "$ROUTEROS_SOURCE_ROOT" >> "$FEEDS_CONF"
-		[ -d "$ROUTEROS_SOURCE_ROOT/luci/.git" ] && printf 'src-git luci %s/luci\n' "$ROUTEROS_SOURCE_ROOT" >> "$FEEDS_CONF"
-		[ -d "$ROUTEROS_SOURCE_ROOT/routing/.git" ] && printf 'src-git routing %s/routing\n' "$ROUTEROS_SOURCE_ROOT" >> "$FEEDS_CONF"
+		[ -d "$ROUTEROS_SOURCE_ROOT/packages/.git" ] && printf 'src-link packages %s/packages\n' "$ROUTEROS_SOURCE_ROOT" >> "$FEEDS_CONF"
+		[ -d "$ROUTEROS_SOURCE_ROOT/luci/.git" ] && printf 'src-link luci %s/luci\n' "$ROUTEROS_SOURCE_ROOT" >> "$FEEDS_CONF"
+		[ -d "$ROUTEROS_SOURCE_ROOT/routing/.git" ] && printf 'src-link routing %s/routing\n' "$ROUTEROS_SOURCE_ROOT" >> "$FEEDS_CONF"
 		cat >> "$FEEDS_CONF" <<EOF
 
 # RouterOS custom feed

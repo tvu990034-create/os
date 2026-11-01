@@ -106,13 +106,12 @@ jobs:
           SERIAL_LOG=/tmp/qemu-serial.log
           QEMU_PID=
 
-          # Start QEMU in background
+          # Start QEMU in background with basic networking
           qemu-system-x86_64 \
             -nographic \
             -m 512M \
             -drive file=firmware/openwrt-25.12.6-x86-64-generic-ext4-combined.img,format=raw \
-            -net nic,model=e1000 \
-            -net user \
+            -net nic,model=e1000 -net user \
             -serial file:"$SERIAL_LOG" &
           QEMU_PID=$!
 

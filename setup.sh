@@ -12,6 +12,9 @@ OVERLAY_DIR="$ROOT_DIR/custom/overlay"
 MANIFEST="$OPENWRT_DIR/.routeros-overlay.sha256"
 TMP_MANIFEST="$OPENWRT_DIR/.routeros-overlay.sha256.tmp.$$"
 
+# Allow overriding source root for external repositories
+ROUTEROS_SOURCE_ROOT=${ROUTEROS_SOURCE_ROOT:-"$ROOT_DIR"}
+
 fail() {
 	printf 'ERROR: %s\n' "$*" >&2
 	exit 1
@@ -56,17 +59,18 @@ if [ -f "$FEEDS_CONF" ]; then
 	fi
 else
 	# Create feeds.conf with local feeds prioritized
-	if [ -d "$ROOT_DIR/packages" ] && [ -d "$ROOT_DIR/luci" ] && [ -d "$ROOT_DIR/routing" ]; then
+	if [ -d "$ROUTEROS_SOURCE_ROOT/packages" ] && [ -d "$ROUTEROS_SOURCE_ROOT/luci" ] && [ -d "$ROUTEROS_SOURCE_ROOT/routing" ]; then
 		printf 'Configuring local feeds (packages, luci, routing)\n'
+		printf 'Source root: %s\n' "$ROUTEROS_SOURCE_ROOT"
 		cat > "$FEEDS_CONF" <<EOF
 # RouterOS local feed configuration
 # Local feeds are prioritized for development and reproducibility
 # Remote feeds are kept as fallback for missing packages
 
 # Local feeds (prioritized)
-src-git packages $ROOT_DIR/packages
-src-git luci $ROOT_DIR/luci
-src-git routing $ROOT_DIR/routing
+src-git packages $ROUTEROS_SOURCE_ROOT/packages
+src-git luci $ROUTEROS_SOURCE_ROOT/luci
+src-git routing $ROUTEROS_SOURCE_ROOT/routing
 
 # RouterOS custom feed
 src-link routeros $CUSTOM_FEED_DIR

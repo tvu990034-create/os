@@ -51,10 +51,17 @@ jobs:
         run: |
           OUTPUT_DIR="bin/targets/x86/64"
           [ -d "$OUTPUT_DIR" ] || { echo "Output directory missing"; exit 1; }
-          [ -f "$OUTPUT_DIR/openwrt-25.12.6-x86-64-generic-ext4-combined.img.gz" ] || { echo "Combined image missing"; exit 1; }
-          [ -f "$OUTPUT_DIR/openwrt-25.12.6-x86-64-generic-kernel.bin" ] || { echo "Kernel missing"; exit 1; }
-          [ -f "$OUTPUT_DIR/openwrt-25.12.6-x86-64-generic-rootfs.tar.gz" ] || { echo "Rootfs missing"; exit 1; }
-          echo "Firmware artifacts verified"
+          BIOS_IMAGE=$(find "$OUTPUT_DIR" -maxdepth 1 -type f -name '*generic-ext4-combined.img.gz' -print -quit)
+          UEFI_IMAGE=$(find "$OUTPUT_DIR" -maxdepth 1 -type f -name '*generic-ext4-combined-efi.img.gz' -print -quit)
+          ROOTFS_IMAGE=$(find "$OUTPUT_DIR" -maxdepth 1 -type f -name '*generic-ext4-rootfs.img.gz' -print -quit)
+          [ -n "$BIOS_IMAGE" ] || { echo "BIOS combined ext4 image missing"; ls -lah "$OUTPUT_DIR"; exit 1; }
+          [ -n "$UEFI_IMAGE" ] || { echo "UEFI combined ext4 image missing"; ls -lah "$OUTPUT_DIR"; exit 1; }
+          [ -n "$ROOTFS_IMAGE" ] || { echo "Ext4 rootfs image missing"; ls -lah "$OUTPUT_DIR"; exit 1; }
+          gzip -t "$BIOS_IMAGE"
+          gzip -t "$UEFI_IMAGE"
+          gzip -t "$ROOTFS_IMAGE"
+          echo "Verified BIOS, UEFI and rootfs images:"
+          printf 'BIOS: %s\\nUEFI: %s\\nRootfs: %s\\n' "$BIOS_IMAGE" "$UEFI_IMAGE" "$ROOTFS_IMAGE"
 
       - name: Upload firmware artifacts
         if: always()
@@ -156,8 +163,12 @@ jobs:
 
       - name: Decompress firmware image
         run: |
-          gunzip -k firmware/openwrt-25.12.6-x86-64-generic-ext4-combined.img.gz
-          ls -lh firmware/
+          BIOS_IMAGE=$(find firmware -maxdepth 1 -type f -name '*generic-ext4-combined.img.gz' -print -quit)
+          [ -n "$BIOS_IMAGE" ] || { echo "BIOS image artifact not found"; ls -lah firmware/; exit 1; }
+          gunzip -k "$BIOS_IMAGE"
+          QEMU_DISK="${BIOS_IMAGE%.gz}"
+          qemu-img info "$QEMU_DISK"
+          printf 'QEMU BIOS disk image: %s\\n' "$QEMU_DISK"
 
       - name: Boot in QEMU with basic service checks
         timeout-minutes: 5
@@ -170,7 +181,7 @@ jobs:
           qemu-system-x86_64 \
             -nographic \
             -m 512M \
-            -drive file=firmware/openwrt-25.12.6-x86-64-generic-ext4-combined.img,format=raw \
+            -drive file="$QEMU_DISK",format=raw \
             -net nic,model=e1000 -net user \
             -serial file:"$SERIAL_LOG" &
           QEMU_PID=$!

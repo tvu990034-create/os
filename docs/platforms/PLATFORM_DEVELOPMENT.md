@@ -120,11 +120,20 @@ Once tested, update status in `config/platforms.tsv`:
 
 ### Characteristics
 
-- Standard PC hardware
-- Intel/AMD x86_64 CPUs
-- Standard Ethernet controllers
-- UEFI or BIOS boot
-- SATA or NVMe storage
+- Generic OpenWrt x86/64 target for standard Intel and AMD 64-bit PCs
+- Desktop PCs, office PCs, mini PCs, workstations and many servers
+- Legacy BIOS and UEFI boot images
+- SATA/AHCI, NVMe, USB mass storage and virtio block support from the x86_64 kernel
+- Bundled common Intel, Realtek, Broadcom, Marvell and Atheros PCIe Ethernet drivers
+- Bundled common Realtek/ASIX/CDC/RNDIS USB Ethernet drivers
+- Virtual NIC support for common virtual-machine environments
+
+This is a broad generic-PC target, not a guarantee for every PC. Unsupported or unusual
+Ethernet/Wi-Fi chipsets, RAID/VMD storage modes, vendor-specific platform controllers,
+and Secure Boot configurations may require additional drivers or firmware settings.
+For the first installation, use a standard AHCI/NVMe storage mode and disable Secure Boot
+unless the device has a separately validated signed-boot chain. Wi-Fi support is chipset-
+specific and is not guaranteed by the generic wired-Ethernet driver set.
 
 ### Configuration
 

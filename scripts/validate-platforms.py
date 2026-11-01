@@ -19,6 +19,20 @@ REQUIRED_LUCI_PACKAGES = (
     "luci-mod-admin-full",
     "luci-app-firewall",
 )
+REQUIRED_X86_PACKAGES = (
+    "kmod-e1000", "kmod-e1000e", "kmod-igb", "kmod-igc", "kmod-ixgbe",
+    "kmod-r8169", "kmod-tg3", "kmod-bnx2", "kmod-sky2", "kmod-alx",
+    "kmod-8139cp", "kmod-8139too", "kmod-vmxnet3", "kmod-usb3",
+    "kmod-usb-net-rtl8152", "kmod-usb-net-asix",
+    "kmod-usb-net-asix-ax88179", "kmod-usb-net-cdc-ether",
+    "kmod-usb-net-rndis",
+)
+REQUIRED_X86_OPTIONS = (
+    "CONFIG_TARGET_ROOTFS_EXT4FS=y",
+    "CONFIG_TARGET_IMAGES_GZIP=y",
+    "CONFIG_GRUB_IMAGES=y",
+    "CONFIG_GRUB_EFI_IMAGES=y",
+)
 VALID_STATUSES = {"development", "experimental", "verified", "production-ready"}
 VALID_TYPES = {"generic-pc", "generic-arm64", "generic-vm", "board-specific", "architecture-level"}
 
@@ -111,6 +125,20 @@ def main() -> int:
         if missing_luci:
             print(f"FAIL: {profile} is missing required LuCI packages: {', '.join(missing_luci)}")
             row_failed = True
+
+        if target == "x86":
+            missing_x86_packages = [
+                package for package in REQUIRED_X86_PACKAGES
+                if f"CONFIG_PACKAGE_{package}=y" not in config_lines
+            ]
+            if missing_x86_packages:
+                print(f"FAIL: {profile} is missing generic x86 Ethernet drivers: {', '.join(missing_x86_packages)}")
+                row_failed = True
+
+            missing_x86_options = sorted(set(REQUIRED_X86_OPTIONS) - config_lines)
+            if missing_x86_options:
+                print(f"FAIL: {profile} is missing BIOS/UEFI image options: {', '.join(missing_x86_options)}")
+                row_failed = True
 
         if row_failed:
             failed = True

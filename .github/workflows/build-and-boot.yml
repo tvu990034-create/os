@@ -3,18 +3,8 @@ name: RouterOS full firmware build and boot test
 on:
   push:
     branches: [foundation/ready-for-dsa]
-    paths:
-      - 'custom-feed/**'
-      - 'config/**'
-      - 'scripts/**'
-      - '.github/workflows/build-and-boot.yml'
   pull_request:
-    branches: [foundation/ready-for-dsa]
-    paths:
-      - 'custom-feed/**'
-      - 'config/**'
-      - 'scripts/**'
-      - '.github/workflows/build-and-boot.yml'
+    branches: [main]
   workflow_dispatch:
 
 permissions:

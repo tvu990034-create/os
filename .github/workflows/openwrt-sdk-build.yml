@@ -4,7 +4,7 @@ on:
   push:
     branches: [foundation/ready-for-dsa]
   pull_request:
-    branches: [foundation/ready-for-dsa]
+    branches: [main]
   workflow_dispatch:
 
 permissions:

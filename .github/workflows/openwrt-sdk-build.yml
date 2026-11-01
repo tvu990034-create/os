@@ -117,10 +117,13 @@ jobs:
             package/feeds/luci/luci-proto-wireguard/compile \
             package/feeds/luci/luci-proto-openvpn/compile
 
-      - name: Run DSA host-side tests (mandatory)
+      - name: Run DSA host-side tests (separate from SDK build)
         working-directory: ${{ github.workspace }}
         run: |
           # Host-side synthetic tests only - not kernel/network dataplane integration
+          # Tests require host build environment
+          sudo apt-get update
+          sudo apt-get install -y build-essential libdl-dev
           ./tests/dsa-sdk/test-plugin.sh
 
       - name: Upload custom package artifacts

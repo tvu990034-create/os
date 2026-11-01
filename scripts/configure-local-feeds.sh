@@ -8,33 +8,100 @@ ROOT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 OPENWRT_DIR=${OPENWRT_DIR:-"$ROOT_DIR/openwrt"}
 FEEDS_CONF="$OPENWRT_DIR/feeds.conf"
 
+# Allow overriding source root for external repositories
+ROUTEROS_SOURCE_ROOT=${ROUTEROS_SOURCE_ROOT:-"$ROOT_DIR"}
+
 # Local feed paths
-LOCAL_FEEDS_ROOT="$ROOT_DIR"
+LOCAL_FEEDS_ROOT="$ROUTEROS_SOURCE_ROOT"
 PACKAGES_FEED="$LOCAL_FEEDS_ROOT/packages"
 LUCI_FEED="$LOCAL_FEEDS_ROOT/luci"
 ROUTING_FEED="$LOCAL_FEEDS_ROOT/routing"
-CUSTOM_FEED="$LOCAL_FEEDS_ROOT/custom-feed"
+CUSTOM_FEED="$ROOT_DIR/custom-feed"
 
 fail() {
 	printf 'ERROR: %s\n' "$*" >&2
 	exit 1
 }
 
-# Verify local feeds exist
-[ -d "$PACKAGES_FEED" ] || fail "Local packages feed not found: $PACKAGES_FEED"
-[ -d "$LUCI_FEED" ] || fail "Local luci feed not found: $LUCI_FEED"
-[ -d "$ROUTING_FEED" ] || fail "Local routing feed not found: $ROUTING_FEED"
-[ -d "$CUSTOM_FEED" ] || fail "Custom feed not found: $CUSTOM_FEED"
+# Verify local feeds exist and are Git repositories
+verify_git_repo() {
+	local repo_path="$1"
+	local repo_name="$2"
 
-# Get current commits for reproducibility
+	if [ ! -d "$repo_path" ]; then
+		printf 'WARNING: %s not found at %s\n' "$repo_name" "$repo_path"
+		return 1
+	fi
+
+	if [ ! -d "$repo_path/.git" ]; then
+		printf 'WARNING: %s is not a Git repository: %s\n' "$repo_name" "$repo_path"
+		return 1
+	fi
+
+	# Verify Git remote
+	if ! git -C "$repo_path" remote -v >/dev/null 2>&1; then
+		printf 'WARNING: %s has no Git remote: %s\n' "$repo_name" "$repo_path"
+		return 1
+	fi
+
+	# Get current commit
+	local commit=$(git -C "$repo_path" rev-parse HEAD 2>/dev/null || echo "unknown")
+	local branch=$(git -C "$repo_path" branch --show-current 2>/dev/null || echo "unknown")
+	local remote=$(git -C "$repo_path" remote -v 2>/dev/null | head -1 | awk '{print $2}' || echo "unknown")
+
+	# Check if shallow clone
+	if [ -f "$repo_path/.git/shallow" ]; then
+		local clone_type="shallow"
+	else
+		local clone_type="full"
+	fi
+
+	printf '  %s: %s\n' "$repo_name" "$repo_path"
+	printf '    Remote: %s\n' "$remote"
+	printf '    Branch: %s\n' "$branch"
+	printf '    Commit: %s\n' "${commit:0:8}"
+	printf '    Clone type: %s\n' "$clone_type
+
+	return 0
+}
+
+printf 'Verifying local source repositories:\n'
+PACKAGES_VERIFIED=false
+LUCI_VERIFIED=false
+ROUTING_VERIFIED=false
+
+if verify_git_repo "$PACKAGES_FEED" "packages"; then
+	PACKAGES_VERIFIED=true
+fi
+
+if verify_git_repo "$LUCI_FEED" "luci"; then
+	LUCI_VERIFIED=true
+fi
+
+if verify_git_repo "$ROUTING_FEED" "routing"; then
+	ROUTING_VERIFIED=true
+fi
+
+# Only require custom-feed if we're using it directly
+[ -d "$CUSTOM_FEED" ] || fail "Custom feed not found: $CUSTOM_FEED"
+printf '  custom-feed: %s\n' "$CUSTOM_FEED"
+
+# Get current commits for reproducibility (if verified)
 PACKAGES_COMMIT=$(git -C "$PACKAGES_FEED" rev-parse HEAD 2>/dev/null || echo "unknown")
 LUCI_COMMIT=$(git -C "$LUCI_FEED" rev-parse HEAD 2>/dev/null || echo "unknown")
 ROUTING_COMMIT=$(git -C "$ROUTING_FEED" rev-parse HEAD 2>/dev/null || echo "unknown")
 
-printf 'Configuring local feeds for OpenWrt:\n'
-printf '  packages: %s (commit: %s)\n' "$PACKAGES_FEED" "${PACKAGES_COMMIT:0:8}"
-printf '  luci: %s (commit: %s)\n' "$LUCI_FEED" "${LUCI_COMMIT:0:8}"
-printf '  routing: %s (commit: %s)\n' "$ROUTING_FEED" "${ROUTING_COMMIT:0:8}"
+printf '\nConfiguring local feeds for OpenWrt:\n'
+printf '  Source root: %s\n' "$LOCAL_FEEDS_ROOT"
+if $PACKAGES_VERIFIED; then
+	printf '  packages: %s (commit: %s)\n' "$PACKAGES_FEED" "${PACKAGES_COMMIT:0:8}"
+fi
+if $LUCI_VERIFIED; then
+	printf '  luci: %s (commit: %s)\n' "$LUCI_FEED" "${LUCI_COMMIT:0:8}"
+fi
+if $ROUTING_VERIFIED; then
+	printf '  routing: %s (commit: %s)\n' "$ROUTING_FEED" "${ROUTING_COMMIT:0:8}"
+fi
 printf '  custom-feed: %s\n' "$CUSTOM_FEED"
 
 # Create feeds.conf with local feeds and remote fallback
@@ -43,13 +110,24 @@ cat > "$FEEDS_CONF" <<EOF
 # Local feeds are prioritized for development and reproducibility
 # Remote feeds are kept as fallback for missing packages
 
-# Local feeds (prioritized)
-src-git packages $PACKAGES_FEED
-src-git luci $LUCI_FEED
-src-git routing $ROUTING_FEED
+EOF
 
-# RouterOS custom feed
-src-link routeros $CUSTOM_FEED
+# Add verified local feeds
+if $PACKAGES_VERIFIED; then
+	printf 'src-git packages %s\n' "$PACKAGES_FEED" >> "$FEEDS_CONF"
+fi
+if $LUCI_VERIFIED; then
+	printf 'src-git luci %s\n' "$LUCI_FEED" >> "$FEEDS_CONF"
+fi
+if $ROUTING_VERIFIED; then
+	printf 'src-git routing %s\n' "$ROUTING_FEED" >> "$FEEDS_CONF"
+fi
+
+# Add RouterOS custom feed
+printf 'src-link routeros %s\n' "$CUSTOM_FEED" >> "$FEEDS_CONF"
+
+# Add remote feeds (fallback)
+cat >> "$FEEDS_CONF" <<EOF
 
 # Remote feeds (fallback)
 src-git telephony https://git.openwrt.org/feed/telephony.git

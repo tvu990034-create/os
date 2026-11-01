@@ -31,16 +31,17 @@ RouterOS uses a local feed configuration strategy with configurable source root:
 1. **setup.sh automatically configures local feeds**:
    - Uses `ROUTEROS_SOURCE_ROOT` environment variable (default: ROOT_DIR)
    - Allows external source root (e.g., `/mnt/f/router-os-source` for WSL access to Windows F: drive)
-   - Checks if local repositories exist at source root (`packages/`, `luci/`, `routing/`)
-   - If local feeds exist, creates `openwrt/feeds.conf` with local feeds prioritized
-   - Falls back to remote feeds if local repositories are not available
+   - Verifies each repository is a valid Git repository (checks for `.git` directory)
+   - Reports verification status (remote, branch, commit, clone type) for each repository
+   - Only uses verified local repositories in feeds.conf
+   - Falls back to remote feeds if local repositories are not available or not Git repositories
    - This ensures CI can still work without local repositories
 
-2. **Local feeds are prioritized**:
-   - `src-git packages $ROUTEROS_SOURCE_ROOT/packages` - Local packages feed
-   - `src-git luci $ROUTEROS_SOURCE_ROOT/luci` - Local LuCI feed
-   - `src-git routing $ROUTEROS_SOURCE_ROOT/routing` - Local routing feed
-   - `src-link routeros $CUSTOM_FEED_DIR` - RouterOS custom feed
+2. **Local feeds are selectively added**:
+   - `src-git packages $ROUTEROS_SOURCE_ROOT/packages` - Added only if verified Git repository
+   - `src-git luci $ROUTEROS_SOURCE_ROOT/luci` - Added only if verified Git repository
+   - `src-git routing $ROUTEROS_SOURCE_ROOT/routing` - Added only if verified Git repository
+   - `src-link routeros $CUSTOM_FEED_DIR` - RouterOS custom feed (always required)
 
 3. **Remote feeds remain as fallback**:
    - `src-git telephony https://git.openwrt.org/feed/telephony.git`
@@ -49,25 +50,45 @@ RouterOS uses a local feed configuration strategy with configurable source root:
 
 4. **Manual configuration script**:
    - `scripts/configure-local-feeds.sh` can be run to reconfigure feeds
-   - Reports current commits for reproducibility
-   - Useful for feed troubleshooting
+   - Verifies each repository is a valid Git repository before using it
+   - Reports verification status (remote, branch, commit, clone type) for each repository
+   - Only adds verified repositories to feeds.conf
+   - Useful for feed troubleshooting and manual feed management
 
 ### Feed Configuration File
 
-The generated `openwrt/feeds.conf` looks like:
+The generated `openwrt/feeds.conf` varies based on which local repositories are verified:
 
+**With all local repositories verified:**
 ```
 # RouterOS local feed configuration
 # Local feeds are prioritized for development and reproducibility
 # Remote feeds are kept as fallback for missing packages
 
 # Local feeds (prioritized)
-src-git packages ../packages
-src-git luci ../luci
-src-git routing ../routing
+src-git packages /mnt/f/router-os-source/packages
+src-git luci /mnt/f/router-os-source/luci
+src-git routing /mnt/f/router-os-source/routing
 
 # RouterOS custom feed
-src-link routeros ../custom-feed
+src-link routeros /path/to/router-os-source/custom-feed
+
+# Remote feeds (fallback)
+src-git telephony https://git.openwrt.org/feed/telephony.git
+src-git video https://github.com/openwrt/video.git
+
+# Include OpenWrt defaults for any feeds not defined above
+src-include defaults feeds.conf.default
+```
+
+**With no local repositories verified (CI or clean environment):**
+```
+# RouterOS local feed configuration
+# Local feeds are prioritized for development and reproducibility
+# Remote feeds are kept as fallback for missing packages
+
+# RouterOS custom feed
+src-link routeros /path/to/router-os-source/custom-feed
 
 # Remote feeds (fallback)
 src-git telephony https://git.openwrt.org/feed/telephony.git

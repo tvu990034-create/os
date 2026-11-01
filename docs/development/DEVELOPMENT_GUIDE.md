@@ -35,6 +35,18 @@ cd os
 ./setup.sh
 ```
 
+**For Windows/WSL users with external source repositories:**
+
+If you have downloaded upstream source repositories on Windows (e.g., `F:\router-os-source\`), you can configure RouterOS to use them from WSL:
+
+```bash
+# In WSL, set the source root to the Windows drive mount point
+export ROUTEROS_SOURCE_ROOT=/mnt/f/router-os-source
+./setup.sh
+```
+
+This will configure local feeds to use the Windows repositories while keeping the RouterOS code in the WSL filesystem.
+
 5. Build firmware for a platform:
 ```bash
 JOBS=2 ./scripts/build-platform.sh x86_64

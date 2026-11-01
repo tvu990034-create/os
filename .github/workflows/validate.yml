@@ -1,8 +1,6 @@
 name: RouterOS source validation
 
 on:
-  push:
-    branches: [foundation/ready-for-dsa]
   pull_request:
     branches: [main]
   workflow_dispatch:

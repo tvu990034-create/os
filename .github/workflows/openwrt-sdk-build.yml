@@ -1,8 +1,6 @@
 name: OpenWrt 25.12.6 multi-platform package SDK build
 
 on:
-  push:
-    branches: [foundation/ready-for-dsa]
   pull_request:
     branches: [main]
   workflow_dispatch:

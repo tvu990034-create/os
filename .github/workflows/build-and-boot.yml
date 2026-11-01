@@ -1,8 +1,6 @@
 name: RouterOS full firmware build and boot test
 
 on:
-  push:
-    branches: [foundation/ready-for-dsa]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -72,6 +70,67 @@ jobs:
         with:
           name: routeros-x86_64-build-logs
           path: openwrt/logs/
+          retention-days: 7
+
+  firmware-build-arm64:
+    name: Build generic ARM64 firmware
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+
+    steps:
+      - name: Check out RouterOS
+        uses: actions/checkout@v4
+
+      - name: Install OpenWrt build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential ccache file g++ gawk gettext git \
+            default-jre-headless libncurses-dev libncursesw5-dev libssl-dev \
+            python3 python3-setuptools python3-yaml rsync subversion swig \
+            xsltproc zlib1g-dev unzip
+
+      - name: Setup OpenWrt build tree
+        run: ./setup.sh
+
+      - name: Build generic ARM64 firmware
+        working-directory: openwrt
+        env:
+          JOBS: 2
+        run: |
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+          cp ../config/armsr_armv8.config .config
+          make defconfig
+          grep -Fqx "CONFIG_TARGET_armsr=y" .config
+          grep -Fqx "CONFIG_TARGET_armsr_armv8=y" .config
+          make download -j"$JOBS"
+          make -j"$JOBS" V=s
+
+      - name: Verify ARM64 firmware output
+        working-directory: openwrt
+        run: |
+          OUTPUT_DIR="bin/targets/armsr/armv8"
+          [ -d "$OUTPUT_DIR" ] || { echo "ARM64 output directory missing"; exit 1; }
+          [ -f "$OUTPUT_DIR/openwrt-25.12.6-armsr-armv8-generic-ext4-combined-efi.img.gz" ] || { echo "ARM64 EFI combined image missing"; exit 1; }
+          [ -f "$OUTPUT_DIR/openwrt-25.12.6-armsr-armv8-generic-kernel.bin" ] || { echo "ARM64 kernel missing"; exit 1; }
+          [ -f "$OUTPUT_DIR/openwrt-25.12.6-armsr-armv8-generic-ext4-rootfs.img.gz" ] || { echo "ARM64 ext4 rootfs missing"; exit 1; }
+          echo "ARM64 firmware artifacts verified"
+
+      - name: Upload ARM64 firmware artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: routeros-armsr-armv8-firmware
+          path: openwrt/bin/targets/armsr/armv8/
+          retention-days: 7
+
+      - name: Upload ARM64 build logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: routeros-armsr-armv8-build-logs
+          path: openwrt/logs/
+          if-no-files-found: ignore
           retention-days: 7
 
   qemu-boot-test:

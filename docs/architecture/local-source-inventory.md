@@ -4,19 +4,19 @@ This document provides a verified inventory of all local source repositories ava
 
 ## Repository Overview
 
-| Repository | Availability | Current Commit | Branch | Remote | Clone Type |
-|-----------|-------------|----------------|--------|--------|------------|
-| openwrt | ✅ Available | ca454c0 | main | https://github.com/openwrt/openwrt.git | Full |
-| luci | ✅ Available | 0e27835 | master | https://github.com/openwrt/luci.git | Full |
-| packages | ✅ Available | 6307bdf | master | https://github.com/openwrt/packages.git | Full |
-| routing | ✅ Available | 4b9891b | master | https://github.com/openwrt/routing.git | Full |
-| buildroot | ✅ Available | 727b904c | master | https://github.com/buildroot/buildroot.git | Full |
-| iproute2 | ✅ Available | d1341d0 | main | https://github.com/iproute2/iproute2.git | Full |
-| dpdk | ✅ Available | e3e29ed | main | https://github.com/DPDK/dpdk.git | Full |
-| xdp-tutorial | ✅ Available | 4e2bf56 | main | https://github.com/xdp-project/xdp-tutorial.git | Full |
-| u-boot | ✅ Available | 03e45557 | main | https://github.com/u-boot/u-boot.git | Full |
-| coreboot | ✅ Available | 0c9190b7 | main | https://github.com/coreboot/coreboot.git | Full |
-| linux | ❌ Not Found | N/A | N/A | N/A | N/A |
+| Repository | Availability | Current Commit | Branch | Remote | Clone Type | Submodules |
+|-----------|-------------|----------------|--------|--------|------------|------------|
+| openwrt | ✅ Available | ca454c0 | main | https://github.com/openwrt/openwrt.git | Shallow | None |
+| luci | ✅ Available | 0e27835 | master | https://github.com/openwrt/luci.git | Shallow | None |
+| packages | ✅ Available | 6307bdf | master | https://github.com/openwrt/packages.git | Shallow | None |
+| routing | ✅ Available | 4b9891b | master | https://github.com/openwrt/routing.git | Shallow | None |
+| buildroot | ✅ Available | 727b904c | master | https://github.com/buildroot/buildroot.git | Shallow | None |
+| iproute2 | ✅ Available | d1341d0 | main | https://github.com/iproute2/iproute2.git | Shallow | None |
+| dpdk | ✅ Available | e3e29ed | main | https://github.com/DPDK/dpdk.git | Shallow | None |
+| xdp-tutorial | ✅ Available | 4e2bf56 | main | https://github.com/xdp-project/xdp-tutorial.git | Shallow | libbpf, xdp-tools |
+| u-boot | ✅ Available | 03e45557 | main | https://github.com/u-boot/u-boot.git | Shallow | None |
+| coreboot | ✅ Available | 0c9190b7 | main | https://github.com/coreboot/coreboot.git | Shallow | 18 submodules |
+| linux | ❌ Not Found | N/A | N/A | N/A | N/A | N/A |
 
 ## Detailed Repository Information
 
@@ -32,7 +32,7 @@ This document provides a verified inventory of all local source repositories ava
 
 **Commit Message:** netfilter: fix file clash during install of kmod-iptables
 
-**Clone Type:** Full (not shallow)
+**Clone Type:** Shallow
 
 **Top-Level Structure:**
 - `package/` - OpenWrt package system
@@ -72,7 +72,7 @@ This document provides a verified inventory of all local source repositories ava
 
 **Commit Message:** luci-base: add FileUploadList widget and form option
 
-**Clone Type:** Full (not shallow)
+**Clone Type:** Shallow
 
 **Top-Level Structure:**
 - `applications/` - LuCI web applications
@@ -111,7 +111,7 @@ This document provides a verified inventory of all local source repositories ava
 
 **Commit Message:** wg-installer: indent the package metadata with two spaces
 
-**Clone Type:** Full (not shallow)
+**Clone Type:** Shallow
 
 **Top-Level Structure:**
 - `admin/` - Administration tools
@@ -151,7 +151,7 @@ This document provides a verified inventory of all local source repositories ava
 
 **Commit Message:** opennds: remove package, moved to openwrt/packages
 
-**Clone Type:** Full (not shallow)
+**Clone Type:** Shallow
 
 **Top-Level Structure:**
 - `ahcpd/` - Ad-Hoc Configuration Protocol Daemon
@@ -192,7 +192,7 @@ This document provides a verified inventory of all local source repositories ava
 
 **Commit Message:** package/grpc: security bump version to 1.84.1
 
-**Clone Type:** Full (not shallow)
+**Clone Type:** Shallow
 
 **Top-Level Structure:**
 - `arch/` - Architecture-specific code
@@ -234,7 +234,7 @@ This document provides a verified inventory of all local source repositories ava
 
 **Commit Message:** uapi: update headers to 7.4 pre rc1
 
-**Clone Type:** Full (not shallow)
+**Clone Type:** Shallow
 
 **Top-Level Structure:**
 - `ip/` - IP configuration commands
@@ -276,7 +276,7 @@ This document provides a verified inventory of all local source repositories ava
 
 **Commit Message:** event/dlb2: fix race condition during dynamic linking
 
-**Clone Type:** Full (not shallow)
+**Clone Type:** Shallow
 
 **Top-Level Structure:**
 - `app/` - DPDK applications
@@ -318,7 +318,7 @@ This document provides a verified inventory of all local source repositories ava
 
 **Commit Message:** tracing01-xdp-simple/README.org: add reference to xdp-tools for xdp-loader command
 
-**Clone Type:** Full (not shallow) - Has git submodules
+**Clone Type:** Shallow - Has git submodules
 
 **Top-Level Structure:**
 - `basic01-xdp-pass/` - Basic XDP pass example
@@ -361,7 +361,7 @@ This document provides a verified inventory of all local source repositories ava
 
 **Commit Message:** Merge patch series "boot: image-fdt: fix reservation errors above ram_top"
 
-**Clone Type:** Full (not shallow)
+**Clone Type:** Shallow
 
 **Top-Level Structure:**
 - `arch/` - Architecture-specific code
@@ -410,7 +410,7 @@ This document provides a verified inventory of all local source repositories ava
 
 **Commit Message:** soc/mediatek/mt8189: Reserve the whole TZRAM for BL31
 
-**Clone Type:** Full (not shallow) - Has git submodules
+**Clone Type:** Shallow - Has git submodules
 
 **Top-Level Structure:**
 - `3rdparty/` - Third-party code

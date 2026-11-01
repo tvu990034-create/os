@@ -6,12 +6,14 @@ This document describes how RouterOS integrates with upstream OpenWrt source rep
 
 RouterOS uses the OpenWrt feed system to integrate with upstream repositories. The following upstream sources are available locally:
 
+**Note:** All local repositories are shallow clones. They are available for development but may not have full Git history.
+
 | Repository | Location | Purpose | Integration Status |
 |-----------|----------|---------|-------------------|
 | OpenWrt | `F:\router-os-source\openwrt\` | Main OpenWrt distribution, build system, target architecture | ✅ Integrated via setup.sh (pinned to v25.12.6) |
-| OpenWrt Packages | `F:\router-os-source\packages\` | OpenWrt packages feed | ✅ Configured as local feed (commit: 6307bdf) |
-| OpenWrt Routing | `F:\router-os-source\routing\` | Routing protocols and network routing packages | ✅ Configured as local feed (commit: 4b9891b) |
-| LuCI | `F:\router-os-source\luci\` | OpenWrt web interface framework | ✅ Configured as local feed (commit: 0e27835) |
+| OpenWrt Packages | `F:\router-os-source\packages\` | OpenWrt packages feed | ✅ Configured as local feed (commit: 6307bdf, shallow) |
+| OpenWrt Routing | `F:\router-os-source\routing\` | Routing protocols and network routing packages | ✅ Configured as local feed (commit: 4b9891b, shallow) |
+| LuCI | `F:\router-os-source\luci\` | OpenWrt web interface framework | ✅ Configured as local feed (commit: 0e27835, shallow) |
 | Linux | `F:\router-os-source\linux\` | Linux kernel source | ❌ Not cloned locally (OpenWrt manages kernel) |
 | iproute2 | `F:\router-os-source\iproute2\` | Network configuration and tc tool | ⏳ Available in OpenWrt packages |
 | Buildroot | `F:\router-os-source\buildroot\` | Alternative build system | ❌ Not used (using OpenWrt build system) |
@@ -24,19 +26,21 @@ RouterOS uses the OpenWrt feed system to integrate with upstream repositories. T
 
 ### Feed Configuration
 
-RouterOS now uses a local feed configuration strategy:
+RouterOS uses a local feed configuration strategy with configurable source root:
 
 1. **setup.sh automatically configures local feeds**:
-   - Checks if local repositories exist (`packages/`, `luci/`, `routing/`)
+   - Uses `ROUTEROS_SOURCE_ROOT` environment variable (default: ROOT_DIR)
+   - Allows external source root (e.g., `/mnt/f/router-os-source` for WSL access to Windows F: drive)
+   - Checks if local repositories exist at source root (`packages/`, `luci/`, `routing/`)
    - If local feeds exist, creates `openwrt/feeds.conf` with local feeds prioritized
    - Falls back to remote feeds if local repositories are not available
    - This ensures CI can still work without local repositories
 
 2. **Local feeds are prioritized**:
-   - `src-git packages ../packages` - Local packages feed
-   - `src-git luci ../luci` - Local LuCI feed
-   - `src-git routing ../routing` - Local routing feed
-   - `src-link routeros ../custom-feed` - RouterOS custom feed
+   - `src-git packages $ROUTEROS_SOURCE_ROOT/packages` - Local packages feed
+   - `src-git luci $ROUTEROS_SOURCE_ROOT/luci` - Local LuCI feed
+   - `src-git routing $ROUTEROS_SOURCE_ROOT/routing` - Local routing feed
+   - `src-link routeros $CUSTOM_FEED_DIR` - RouterOS custom feed
 
 3. **Remote feeds remain as fallback**:
    - `src-git telephony https://git.openwrt.org/feed/telephony.git`

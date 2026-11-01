@@ -30,7 +30,9 @@ define Build/Prepare
 	$(INSTALL_DIR) $(PKG_BUILD_DIR)
 	$(CP) ./src/router-dsa-run.c $(PKG_BUILD_DIR)/router-dsa-run.c
 	$(INSTALL_DIR) $(PKG_BUILD_DIR)/include/router-os
-	$(CP) $(TOPDIR)/feeds/routeros/router-dsa-sdk/files/include/router-os/dsa.h $(PKG_BUILD_DIR)/include/router-os/dsa.h
+	# Copy header from router-dsa-sdk source (not from installed location)
+	$(CP) $(TOPDIR)/feeds/routeros/router-dsa-sdk/files/include/router-os/dsa.h $(PKG_BUILD_DIR)/include/router-os/dsa.h || \
+		$(CP) ../router-dsa-sdk/files/include/router-os/dsa.h $(PKG_BUILD_DIR)/include/router-os/dsa.h
 endef
 
 define Build/Compile
@@ -39,6 +41,10 @@ define Build/Compile
 		-o $(PKG_BUILD_DIR)/router-dsa-run \
 		$(PKG_BUILD_DIR)/router-dsa-run.c \
 		$(TARGET_LDFLAGS) -ldl
+endef
+
+define Build/Clean
+	rm -rf $(PKG_BUILD_DIR)
 endef
 
 define Package/router-dsa-runtime/install

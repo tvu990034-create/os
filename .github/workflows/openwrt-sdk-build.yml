@@ -76,9 +76,8 @@ jobs:
           ./scripts/feeds install router-api
           ./scripts/feeds install router-backup
           ./scripts/feeds install router-upgrade
-          # DSA SDK is optional until build infrastructure is stable
-          # ./scripts/feeds install router-dsa-sdk
-          # ./scripts/feeds install router-dsa-runtime
+          ./scripts/feeds install router-dsa-sdk
+          ./scripts/feeds install router-dsa-runtime
           ./scripts/feeds install tcfilter
           ./scripts/feeds install wireguard-tools
           ./scripts/feeds install openvpn-openssl
@@ -110,24 +109,22 @@ jobs:
             package/feeds/routeros/router-api/compile \
             package/feeds/routeros/router-backup/compile \
             package/feeds/routeros/router-upgrade/compile \
-            # DSA SDK compilation - make optional until build is stable
-            # package/feeds/routeros/router-dsa-sdk/compile \
-            # package/feeds/routeros/router-dsa-runtime/compile \
+            package/feeds/routeros/router-dsa-sdk/compile \
+            package/feeds/routeros/router-dsa-runtime/compile \
             package/feeds/packages/tcfilter/compile \
             package/feeds/packages/wireguard-tools/compile \
             package/feeds/packages/openvpn-openssl/compile \
             package/feeds/luci/luci-proto-wireguard/compile \
             package/feeds/luci/luci-proto-openvpn/compile
 
-      # DSA host tests - skip until DSA SDK compilation is fixed
-      # - name: Run DSA host-side tests (separate from SDK build)
-      #   working-directory: ${{ github.workspace }}
-      #   run: |
-      #     # Host-side synthetic tests only - not kernel/network dataplane integration
-      #     # Tests require host build environment
-      #     sudo apt-get update
-      #     sudo apt-get install -y build-essential libdl-dev
-      #     ./tests/dsa-sdk/test-plugin.sh
+      - name: Run DSA host-side tests (separate from SDK build)
+        working-directory: ${{ github.workspace }}
+        run: |
+          # Host-side synthetic tests only - not kernel/network dataplane integration
+          # Tests require host build environment
+          sudo apt-get update
+          sudo apt-get install -y build-essential libdl-dev
+          ./tests/dsa-sdk/test-plugin.sh
 
       - name: Upload custom package artifacts
         if: always()

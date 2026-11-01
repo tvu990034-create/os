@@ -2,12 +2,16 @@
 	"router-api-read": {
 		"description": "Read RouterOS system and network information",
 		"read": {
-			"uci": [
-				"system",
-				"network",
-				"firewall",
-				"dhcp"
-			],
+			"ubus": {
+				"router-api": [
+					"get_system_info",
+					"get_network_status",
+					"get_monitoring",
+					"get_device_info",
+					"list_backups"
+				]
+			},
+			"uci": ["system", "network", "firewall", "dhcp"],
 			"file": {
 				"/usr/libexec/router-core/router-status": "read",
 				"/usr/libexec/router-net/check-network-health.sh": "read",
@@ -18,20 +22,23 @@
 		}
 	},
 	"router-api-write": {
-		"description": "Write RouterOS configuration",
+		"description": "Write RouterOS network and DHCP configuration",
 		"write": {
-			"uci": [
-				"system",
-				"network",
-				"firewall",
-				"dhcp"
-			]
-		},
-		"file": {
-			"/usr/libexec/router-backup/router-backup": "execute"
+			"ubus": {
+				"router-api": [
+					"backup_config",
+					"set_lan_config",
+					"set_wan_config",
+					"set_dhcp_config"
+				]
+			},
+			"uci": ["network", "dhcp"],
+			"file": {
+				"/usr/libexec/router-backup/router-backup": "execute"
+			}
 		}
 	},
 	"unauthenticated": {
-		"description": "Public read access for login page"
+		"description": "No RouterOS management API methods are public"
 	}
 }

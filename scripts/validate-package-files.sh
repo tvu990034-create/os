@@ -185,6 +185,18 @@ for file in $API_FILES; do
 	fi
 done
 
+# Check the executable rpcd API plugin and its protocol test
+if [ -x "$ROOT_DIR/custom-feed/router-api/files/router-api" ]; then
+	pass "router-api executable plugin"
+else
+	fail "router-api plugin is not executable"
+fi
+if [ -f "$ROOT_DIR/tests/router-api/test-rpcd-plugin.sh" ]; then
+	pass "router-api rpcd protocol test exists"
+else
+	fail "router-api rpcd protocol test is missing"
+fi
+
 # Check router-backup files
 BACKUP_FILES="
 custom-feed/router-backup/files/libexec/router-backup

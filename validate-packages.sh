@@ -75,7 +75,8 @@ for script in \
 	"$ROOT_DIR/custom-feed/router-tests/files/test-network-validation.sh" \
 	"$ROOT_DIR/tests/dsa-sdk/test-plugin.sh" \
 	"$ROOT_DIR/tests/router-core/test-firstboot-network.sh" \
-	"$ROOT_DIR/tests/setup/test-setup-overlay.sh"; do
+	"$ROOT_DIR/tests/setup/test-setup-overlay.sh" \\
+\t"$ROOT_DIR/tests/router-api/test-rpcd-plugin.sh"; do
 	if [ -f "$script" ] && sh -n "$script"; then
 		relative_path=${script#"$ROOT_DIR"/}
 		pass "shell syntax: $relative_path"
@@ -152,6 +153,16 @@ if [ -x "$ROOT_DIR/tests/dsa-sdk/test-plugin.sh" ]; then
 	fi
 else
 	fail "DSA plugin ABI test script is not executable"
+fi
+
+if [ -x "$ROOT_DIR/tests/router-api/test-rpcd-plugin.sh" ]; then
+	if "$ROOT_DIR/tests/router-api/test-rpcd-plugin.sh"; then
+		pass "rpcd API protocol and configuration validation"
+	else
+		fail "rpcd API protocol and configuration validation"
+	fi
+else
+	fail "rpcd API test script is not executable"
 fi
 
 if [ "$FAILED" -eq 0 ]; then

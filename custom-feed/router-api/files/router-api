@@ -1,74 +1,197 @@
-#!/usr/bin/ubus
-# RouterOS Management API RPC
+#!/bin/sh
+# RouterOS rpcd executable plugin. rpcd uses "list" and "call <method>".
+# Each call receives one JSON object on stdin.
 
-. /usr/share/libubox/jshn.sh
+LIBEXEC_ROOT=$ROUTER_API_LIBEXEC_ROOT
+[ -n "$LIBEXEC_ROOT" ] || LIBEXEC_ROOT=/usr/libexec
+NETWORK_INIT=$ROUTER_API_NETWORK_INIT
+[ -n "$NETWORK_INIT" ] || NETWORK_INIT=/etc/init.d/network
+DNSMASQ_INIT=$ROUTER_API_DNSMASQ_INIT
+[ -n "$DNSMASQ_INIT" ] || DNSMASQ_INIT=/etc/init.d/dnsmasq
+JSHN_LIB=$ROUTER_API_JSHN_LIB
+[ -n "$JSHN_LIB" ] || JSHN_LIB=/usr/share/libubox/jshn.sh
+
+die() {
+	printf 'router-api: %s\n' "$*" >&2
+	exit 1
+}
+
+respond() {
+	json_init
+	json_add_string status "$1"
+	json_add_string output "$2"
+	json_dump
+}
+
+respond_ok() {
+	respond ok "$1"
+}
+
+run_report() {
+	report=$1
+	shift
+	[ -x "$report" ] || die "required RouterOS command is missing: $report"
+	if output=$("$report" "$@" 2>&1); then
+		respond ok "$output"
+	else
+		respond degraded "$output"
+	fi
+}
+
+load_input() {
+	[ -r "$JSHN_LIB" ] || die "JSON helper library is missing: $JSHN_LIB"
+	. "$JSHN_LIB"
+	input=$(cat) || die "could not read request JSON"
+	json_load "$input" || die "request body is not valid JSON"
+}
+
+valid_ipv4() {
+	printf '%s\n' "$1" | awk -F. '
+		NF != 4 { exit 1 }
+		{
+			for (i = 1; i <= 4; i++)
+				if (length($i) < 1 || length($i) > 3 || $i !~ /^[0-9]+$/ || ($i + 0) > 255)
+					exit 1
+		}
+	'
+}
+
+valid_netmask() {
+	printf '%s\n' "$1" | awk -F. '
+		NF != 4 { exit 1 }
+		{
+			zero_seen = 0
+			one_count = 0
+			for (i = 1; i <= 4; i++) {
+				if (length($i) < 1 || length($i) > 3 || $i !~ /^[0-9]+$/ || ($i + 0) > 255)
+					exit 1
+				value = $i + 0
+				for (bit = 7; bit >= 0; bit--) {
+					setbit = int(value / (2 ^ bit)) % 2
+					if (setbit) {
+						if (zero_seen) exit 1
+						one_count++
+					} else zero_seen = 1
+				}
+			}
+			if (one_count < 1 || one_count > 32) exit 1
+		}
+	'
+}
+
+valid_dhcp_range() {
+	case "$1:$2" in *:*[!0-9]*|*[!0-9]*:*) return 1 ;; esac
+	awk -v start="$1" -v limit="$2" 'BEGIN {
+		if (start < 1 || start > 254 || limit < 1 || limit > 254 || start + limit > 255) exit 1
+	}'
+}
+
+valid_lease() {
+	lease=$1
+	case "$lease" in *s|*m|*h|*d) ;; *) return 1 ;; esac
+	amount=$(printf '%s' "$lease" | sed 's/[smhd]$//')
+	unit=$(printf '%s' "$lease" | sed 's/^[0-9]*//')
+	case "$amount" in ''|*[!0-9]*|0) return 1 ;; esac
+	awk -v amount="$amount" -v unit="$unit" 'BEGIN {
+		maximum = 0
+		if (unit == "s") maximum = 604800
+		else if (unit == "m") maximum = 10080
+		else if (unit == "h") maximum = 168
+		else if (unit == "d") maximum = 7
+		if (maximum == 0 || amount < 1 || amount > maximum) exit 1
+	}'
+}
+
+reload_network() {
+	uci commit network || die "could not commit network configuration"
+	[ -x "$NETWORK_INIT" ] || die "network init script is missing"
+	"$NETWORK_INIT" reload || die "network reload failed after configuration was saved"
+	respond_ok "Network configuration updated"
+}
 
 case "$1" in
+	list)
+		cat <<'JSON'
+{
+  "get_system_info": {},
+  "get_network_status": {},
+  "get_monitoring": {},
+  "get_device_info": {},
+  "backup_config": {},
+  "list_backups": {},
+  "set_lan_config": { "ipaddr": "", "netmask": "" },
+  "set_wan_config": { "proto": "", "ipaddr": "", "netmask": "" },
+  "set_dhcp_config": { "start": "", "limit": "", "leasetime": "" }
+}
+JSON
+		exit 0
+		;;
 	call)
-		case "$2" in
-			get_system_info)
-				/usr/libexec/router-core/router-status
-				;;
-			get_network_status)
-				/usr/libexec/router-net/check-network-health.sh
-				;;
-			get_monitoring)
-				/usr/libexec/router-monitor/router-monitor-system all
-				;;
-			get_device_info)
-				/usr/libexec/router-device/router-device-info all
-				;;
-			backup_config)
-				/usr/libexec/router-backup/router-backup backup
-				;;
-			list_backups)
-				/usr/libexec/router-backup/router-backup list
-				;;
-			set_lan_config)
-				shift 2
-				uci set network.lan.ipaddr="$1"
-				uci set network.lan.netmask="$2"
-				uci commit network
-				/etc/init.d/network reload
-				echo '{"status":"success"}'
-				;;
-			set_wan_config)
-				shift 2
-				uci set network.wan.proto="$1"
-				if [ -n "$2" ]; then
-					uci set network.wan.ipaddr="$2"
-				fi
-				uci commit network
-				/etc/init.d/network reload
-				echo '{"status":"success"}'
-				;;
-			set_dhcp_config)
-				shift 2
-				uci set dhcp.lan.start="$1"
-				uci set dhcp.lan.limit="$2"
-				uci set dhcp.lan.leasetime="$3"
-				uci commit dhcp
-				/etc/init.d/dnsmasq reload
-				echo '{"status":"success"}'
-				;;
-			set_dns_config)
-				shift 2
-				uci delete dhcp.lan.dhcp_option
-				for server in "$@"; do
-					uci add_list dhcp.lan.dhcp_option="6,$server"
-				done
-				uci commit dhcp
-				/etc/init.d/dnsmasq reload
-				echo '{"status":"success"}'
-				;;
-			*)
-				echo "Unknown method: $2"
-				exit 1
-				;;
-		esac
+		[ "$#" -eq 2 ] || die "usage: router-api call <method>"
+		method=$2
+		load_input
 		;;
 	*)
-		echo "Usage: $0 call <method>"
-		exit 1
+		die "rpcd protocol requires 'list' or 'call <method>'"
 		;;
+esac
+
+case "$method" in
+	get_system_info) run_report "$LIBEXEC_ROOT/router-core/router-status" ;;
+	get_network_status) run_report "$LIBEXEC_ROOT/router-net/check-network-health.sh" ;;
+	get_monitoring) run_report "$LIBEXEC_ROOT/router-monitor/router-monitor-system" all ;;
+	get_device_info) run_report "$LIBEXEC_ROOT/router-device/router-device-info" all ;;
+	backup_config) run_report "$LIBEXEC_ROOT/router-backup/router-backup" backup ;;
+	list_backups) run_report "$LIBEXEC_ROOT/router-backup/router-backup" list ;;
+	set_lan_config)
+		json_get_var IPADDR ipaddr
+		json_get_var NETMASK netmask
+		[ -n "$NETMASK" ] || NETMASK=255.255.255.0
+		valid_ipv4 "$IPADDR" || die "ipaddr must be a valid IPv4 address"
+		valid_netmask "$NETMASK" || die "netmask must be a contiguous IPv4 netmask"
+		uci -q get network.lan >/dev/null 2>&1 || die "LAN interface is not configured"
+		uci set network.lan.proto=static || die "could not set LAN protocol"
+		uci set network.lan.ipaddr="$IPADDR" || die "could not set LAN address"
+		uci set network.lan.netmask="$NETMASK" || die "could not set LAN netmask"
+		reload_network
+		;;
+	set_wan_config)
+		json_get_var PROTO proto
+		json_get_var IPADDR ipaddr
+		json_get_var NETMASK netmask
+		case "$PROTO" in
+			dhcp)
+				uci -q get network.wan >/dev/null 2>&1 || uci set network.wan=interface
+				uci set network.wan.proto=dhcp || die "could not set WAN protocol"
+				uci -q delete network.wan.ipaddr >/dev/null 2>&1 || true
+				uci -q delete network.wan.netmask >/dev/null 2>&1 || true
+				;;
+			static)
+				[ -n "$NETMASK" ] || NETMASK=255.255.255.0
+				valid_ipv4 "$IPADDR" || die "static WAN requires a valid IPv4 ipaddr"
+				valid_netmask "$NETMASK" || die "netmask must be a contiguous IPv4 netmask"
+				uci -q get network.wan >/dev/null 2>&1 || uci set network.wan=interface
+				uci set network.wan.proto=static || die "could not set WAN protocol"
+				uci set network.wan.ipaddr="$IPADDR" || die "could not set WAN address"
+				uci set network.wan.netmask="$NETMASK" || die "could not set WAN netmask"
+				;;
+			*) die "proto must be either 'dhcp' or 'static'" ;;
+		esac
+		reload_network
+		;;
+	set_dhcp_config)
+		json_get_var START start
+		json_get_var LIMIT limit
+		json_get_var LEASE leasetime
+		valid_dhcp_range "$START" "$LIMIT" || die "DHCP start and limit must define a valid range within 1..255"
+		valid_lease "$LEASE" || die "leasetime must be between 1 second and 7 days (s, m, h or d suffix)"
+		uci set dhcp.lan.start="$START" || die "could not set DHCP start"
+		uci set dhcp.lan.limit="$LIMIT" || die "could not set DHCP limit"
+		uci set dhcp.lan.leasetime="$LEASE" || die "could not set DHCP lease time"
+		uci commit dhcp || die "could not commit DHCP configuration"
+		[ -x "$DNSMASQ_INIT" ] || die "dnsmasq init script is missing"
+		"$DNSMASQ_INIT" reload || die "dnsmasq reload failed after configuration was saved"
+		respond_ok "DHCP configuration updated"
+		;;
+	*) die "unknown method: $method" ;;
 esac

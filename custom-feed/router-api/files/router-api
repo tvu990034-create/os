@@ -19,10 +19,47 @@ case "$1" in
 				/usr/libexec/router-device/router-device-info all
 				;;
 			backup_config)
-				/usr/libexec/router-core/router-backup backup
+				/usr/libexec/router-backup/router-backup backup
 				;;
 			list_backups)
-				/usr/libexec/router-core/router-backup list
+				/usr/libexec/router-backup/router-backup list
+				;;
+			set_lan_config)
+				shift 2
+				uci set network.lan.ipaddr="$1"
+				uci set network.lan.netmask="$2"
+				uci commit network
+				/etc/init.d/network reload
+				echo '{"status":"success"}'
+				;;
+			set_wan_config)
+				shift 2
+				uci set network.wan.proto="$1"
+				if [ -n "$2" ]; then
+					uci set network.wan.ipaddr="$2"
+				fi
+				uci commit network
+				/etc/init.d/network reload
+				echo '{"status":"success"}'
+				;;
+			set_dhcp_config)
+				shift 2
+				uci set dhcp.lan.start="$1"
+				uci set dhcp.lan.limit="$2"
+				uci set dhcp.lan.leasetime="$3"
+				uci commit dhcp
+				/etc/init.d/dnsmasq reload
+				echo '{"status":"success"}'
+				;;
+			set_dns_config)
+				shift 2
+				uci delete dhcp.lan.dhcp_option
+				for server in "$@"; do
+					uci add_list dhcp.lan.dhcp_option="6,$server"
+				done
+				uci commit dhcp
+				/etc/init.d/dnsmasq reload
+				echo '{"status":"success"}'
 				;;
 			*)
 				echo "Unknown method: $2"

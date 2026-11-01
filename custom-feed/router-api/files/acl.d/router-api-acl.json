@@ -26,6 +26,9 @@
 				"firewall",
 				"dhcp"
 			]
+		},
+		"file": {
+			"/usr/libexec/router-backup/router-backup": "execute"
 		}
 	},
 	"unauthenticated": {

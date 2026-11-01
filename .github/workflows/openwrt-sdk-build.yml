@@ -76,6 +76,8 @@ jobs:
           ./scripts/feeds install router-api
           ./scripts/feeds install router-backup
           ./scripts/feeds install router-upgrade
+          ./scripts/feeds install router-dsa-sdk
+          ./scripts/feeds install router-dsa-runtime
           ./scripts/feeds install tcfilter
           ./scripts/feeds install wireguard-tools
           ./scripts/feeds install openvpn-openssl
@@ -107,20 +109,19 @@ jobs:
             package/feeds/routeros/router-api/compile \
             package/feeds/routeros/router-backup/compile \
             package/feeds/routeros/router-upgrade/compile \
+            package/feeds/routeros/router-dsa-sdk/compile \
+            package/feeds/routeros/router-dsa-runtime/compile \
             package/feeds/packages/tcfilter/compile \
             package/feeds/packages/wireguard-tools/compile \
             package/feeds/packages/openvpn-openssl/compile \
             package/feeds/luci/luci-proto-wireguard/compile \
             package/feeds/luci/luci-proto-openvpn/compile
 
-      - name: Compile DSA packages (optional, do not fail)
-        working-directory: sdk
-        env:
-          JOBS: 2
+      - name: Run DSA host-side tests (mandatory)
+        working-directory: ${{ github.workspace }}
         run: |
-          DEVICE_TYPE=basic make -j"$JOBS" V=s \
-            package/feeds/routeros/router-dsa-sdk/compile \
-            package/feeds/routeros/router-dsa-runtime/compile || true
+          # Host-side synthetic tests only - not kernel/network dataplane integration
+          ./tests/dsa-sdk/test-plugin.sh
 
       - name: Upload custom package artifacts
         if: always()

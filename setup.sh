@@ -42,16 +42,50 @@ FEEDS_CONF="$OPENWRT_DIR/feeds.conf"
 CUSTOM_FEED_LINE="src-link routeros $CUSTOM_FEED_DIR"
 DEFAULTS_LINE="src-include defaults feeds.conf.default"
 
+# Check if feeds.conf already exists and is configured by RouterOS
 if [ -f "$FEEDS_CONF" ]; then
-	grep -Fqx "$CUSTOM_FEED_LINE" "$FEEDS_CONF" ||
-		fail "existing feeds.conf was preserved. Add this exact line to it: $CUSTOM_FEED_LINE"
-	grep -Fqx "$DEFAULTS_LINE" "$FEEDS_CONF" ||
-		fail "existing feeds.conf must include upstream pinned feeds with: $DEFAULTS_LINE"
+	# If feeds.conf exists and contains local feeds, assume it's already configured
+	if grep -q "src-git packages $ROOT_DIR/packages" "$FEEDS_CONF" 2>/dev/null; then
+		printf 'Local feeds already configured in %s\n' "$FEEDS_CONF"
+	else
+		# Old-style configuration - require manual update
+		grep -Fqx "$CUSTOM_FEED_LINE" "$FEEDS_CONF" ||
+			fail "existing feeds.conf was preserved. Add this exact line to it: $CUSTOM_FEED_LINE"
+		grep -Fqx "$DEFAULTS_LINE" "$FEEDS_CONF" ||
+			fail "existing feeds.conf must include upstream pinned feeds with: $DEFAULTS_LINE"
+	fi
 else
-	{
-		printf '%s\n' "$DEFAULTS_LINE"
-		printf '%s\n' "$CUSTOM_FEED_LINE"
-	} > "$FEEDS_CONF"
+	# Create feeds.conf with local feeds prioritized
+	if [ -d "$ROOT_DIR/packages" ] && [ -d "$ROOT_DIR/luci" ] && [ -d "$ROOT_DIR/routing" ]; then
+		printf 'Configuring local feeds (packages, luci, routing)\n'
+		cat > "$FEEDS_CONF" <<EOF
+# RouterOS local feed configuration
+# Local feeds are prioritized for development and reproducibility
+# Remote feeds are kept as fallback for missing packages
+
+# Local feeds (prioritized)
+src-git packages $ROOT_DIR/packages
+src-git luci $ROOT_DIR/luci
+src-git routing $ROOT_DIR/routing
+
+# RouterOS custom feed
+src-link routeros $CUSTOM_FEED_DIR
+
+# Remote feeds (fallback)
+src-git telephony https://git.openwrt.org/feed/telephony.git
+src-git video https://github.com/openwrt/video.git
+
+# Include OpenWrt defaults for any feeds not defined above
+src-include defaults feeds.conf.default
+EOF
+	else
+		# Fallback to remote feeds if local feeds not available
+		printf 'Local feeds not found, using remote feeds\n'
+		{
+			printf '%s\n' "$DEFAULTS_LINE"
+			printf '%s\n' "$CUSTOM_FEED_LINE"
+		} > "$FEEDS_CONF"
+	fi
 fi
 
 # OpenWrt's first-boot config_generate must be allowed to create /etc/config/

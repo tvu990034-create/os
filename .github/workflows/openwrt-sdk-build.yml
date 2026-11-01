@@ -66,6 +66,17 @@ jobs:
           ./scripts/feeds install router-net
           ./scripts/feeds install router-tests
           ./scripts/feeds install router-ui
+          ./scripts/feeds install router-firewall
+          ./scripts/feeds install router-routing
+          ./scripts/feeds install router-monitor
+          ./scripts/feeds install router-device
+          ./scripts/feeds install router-qos
+          ./scripts/feeds install router-vpn
+          ./scripts/feeds install router-dns
+          ./scripts/feeds install router-dhcp
+          ./scripts/feeds install router-api
+          ./scripts/feeds install router-backup
+          ./scripts/feeds install router-upgrade
           ./scripts/feeds install luci-base
           ./scripts/feeds install luci-mod-status
 
@@ -81,7 +92,18 @@ jobs:
             package/feeds/routeros/router-core/compile \
             package/feeds/routeros/router-net/compile \
             package/feeds/routeros/router-tests/compile \
-            package/feeds/routeros/router-ui/compile
+            package/feeds/routeros/router-ui/compile \
+            package/feeds/routeros/router-firewall/compile \
+            package/feeds/routeros/router-routing/compile \
+            package/feeds/routeros/router-monitor/compile \
+            package/feeds/routeros/router-device/compile \
+            package/feeds/routeros/router-qos/compile \
+            package/feeds/routeros/router-vpn/compile \
+            package/feeds/routeros/router-dns/compile \
+            package/feeds/routeros/router-dhcp/compile \
+            package/feeds/routeros/router-api/compile \
+            package/feeds/routeros/router-backup/compile \
+            package/feeds/routeros/router-upgrade/compile
 
       - name: Compile DSA packages (optional, do not fail)
         working-directory: sdk

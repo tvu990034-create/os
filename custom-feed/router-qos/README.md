@@ -2,7 +2,7 @@
 
 ## Overview
 
-The `router-qos` package provides QoS (Quality of Service) configuration and traffic management for RouterOS. It integrates with Linux tc (traffic control) and Cake/HTB schedulers.
+The `router-qos` package provides QoS (Quality of Service) configuration and traffic management for RouterOS. It integrates with Linux tc (traffic control), Cake/HTB schedulers, and upstream OpenWrt components.
 
 ## Components
 
@@ -26,6 +26,20 @@ Shows QoS status:
 - Traffic classes
 - Traffic filters
 - Statistics
+
+## Upstream Integration
+
+This package integrates with the following upstream OpenWrt components:
+
+- **tcfilter**: Persistent tc ingress filters (UCI-managed)
+  - Provides hardware offload support for tc-flower
+  - Enables advanced filter management
+  - Available from OpenWrt packages feed
+
+- **luci-app-qosify**: Modern QoS web interface
+  - CAKE/eBPF traffic shaping daemon
+  - Replaces custom QoS UI with upstream solution
+  - Available from OpenWrt LuCI feed
 
 ## Usage
 
@@ -60,7 +74,8 @@ Shows QoS status:
 - kmod-sched-core: Traffic control core
 - kmod-sched-cake: Cake scheduler
 - kmod-sched-htb: HTB scheduler
-- tc: Traffic control utility
+- tc-full: Traffic control utility
+- tcfilter: Persistent tc filters (upstream)
 
 ## Limitations
 
@@ -74,5 +89,5 @@ Shows QoS status:
 - Advanced traffic classification
 - Priority queues
 - Per-application policies
-- Integration with LuCI
-- Performance benchmarks
+- Full integration with qosify for eBPF-based shaping
+- Hardware offload support via tcfilter

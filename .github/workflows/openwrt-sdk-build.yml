@@ -77,6 +77,9 @@ jobs:
           ./scripts/feeds install router-api
           ./scripts/feeds install router-backup
           ./scripts/feeds install router-upgrade
+          ./scripts/feeds install tcfilter
+          ./scripts/feeds install wireguard-tools
+          ./scripts/feeds install openvpn-openssl
           ./scripts/feeds install luci-base
           ./scripts/feeds install luci-mod-status
 
@@ -103,7 +106,10 @@ jobs:
             package/feeds/routeros/router-dhcp/compile \
             package/feeds/routeros/router-api/compile \
             package/feeds/routeros/router-backup/compile \
-            package/feeds/routeros/router-upgrade/compile
+            package/feeds/routeros/router-upgrade/compile \
+            package/feeds/packages/tcfilter/compile \
+            package/feeds/packages/wireguard-tools/compile \
+            package/feeds/packages/openvpn-openssl/compile
 
       - name: Compile DSA packages (optional, do not fail)
         working-directory: sdk

@@ -2,7 +2,7 @@
 
 ## Overview
 
-The `router-vpn` package provides VPN configuration and management, primarily WireGuard integration.
+The `router-vpn` package provides VPN configuration and management, primarily WireGuard integration. It can work with OpenVPN and other VPN protocols available from upstream OpenWrt packages.
 
 ## Components
 
@@ -17,6 +17,19 @@ Shows VPN status:
 - WireGuard interfaces
 - Interface status
 - Peer information
+
+## Upstream Integration
+
+This package integrates with the following upstream OpenWrt components:
+
+- **wireguard-tools**: WireGuard userspace tools
+  - Available from OpenWrt packages feed
+  - WireGuard kernel module (kmod-wireguard)
+
+- **openvpn-openssl**: OpenVPN with OpenSSL support
+  - Available from OpenWrt packages feed
+  - Full OpenVPN client/server support
+  - Included in firmware for optional use
 
 ## Usage
 
@@ -41,12 +54,7 @@ Shows VPN status:
 - kmod-wireguard: WireGuard kernel module
 - wireguard-tools: WireGuard userspace tools
 
-## Limitations
-
-- Basic WireGuard integration only
-- Configuration through standard UCI/wg tools
-- No LuCI integration yet
-- No OpenVPN support yet
+Note: OpenVPN is available in firmware but not a hard dependency of this package.
 
 ## Security
 
@@ -58,8 +66,8 @@ VPN configuration should be handled carefully:
 
 ## Future Enhancements
 
-- LuCI integration
-- OpenVPN support
+- LuCI integration (use upstream luci-app-openvpn)
+- OpenVPN support helpers
 - VPN wizard
 - Connection status monitoring
 - Automatic reconnection

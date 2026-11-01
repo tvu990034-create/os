@@ -61,7 +61,7 @@ jobs:
           gzip -t "$UEFI_IMAGE"
           gzip -t "$ROOTFS_IMAGE"
           echo "Verified BIOS, UEFI and rootfs images:"
-          printf 'BIOS: %s\\nUEFI: %s\\nRootfs: %s\\n' "$BIOS_IMAGE" "$UEFI_IMAGE" "$ROOTFS_IMAGE"
+          printf 'BIOS: %s\nUEFI: %s\nRootfs: %s\n' "$BIOS_IMAGE" "$UEFI_IMAGE" "$ROOTFS_IMAGE"
 
       - name: Upload firmware artifacts
         if: always()
@@ -168,7 +168,8 @@ jobs:
           gunzip -k "$BIOS_IMAGE"
           QEMU_DISK="${BIOS_IMAGE%.gz}"
           qemu-img info "$QEMU_DISK"
-          printf 'QEMU BIOS disk image: %s\\n' "$QEMU_DISK"
+          printf 'QEMU BIOS disk image: %s\n' "$QEMU_DISK"
+          echo "QEMU_DISK=$QEMU_DISK" >> "$GITHUB_ENV"
 
       - name: Boot in QEMU with basic service checks
         timeout-minutes: 5

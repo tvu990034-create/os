@@ -25,10 +25,8 @@ custom-feed/router-core/files/uci-defaults/99_router-logging
 custom-feed/router-core/files/init.d/router-core
 custom-feed/router-core/files/libexec/router-hw-detect
 custom-feed/router-core/files/libexec/router-status
-custom-feed/router-core/files/libexec/router-backup
 custom-feed/router-core/files/libexec/router-shutdown
 custom-feed/router-core/files/libexec/router-config
-custom-feed/router-core/files/libexec/router-upgrade
 custom-feed/router-core/files/libexec/router-supervisor
 custom-feed/router-core/files/libexec/router-setup-wizard
 custom-feed/router-core/files/hotplug.d/iface/99_router-core

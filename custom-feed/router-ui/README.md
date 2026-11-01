@@ -1,15 +1,29 @@
-# router-ui
+# RouterOS Custom UI (DEPRECATED)
 
-A small, read-only LuCI overview page for RouterOS.
+## Status
 
-## Page
+This package is **DEPRECATED** and replaced with upstream LuCI applications.
 
-After installing the package, the RouterOS page is available under **Status -> RouterOS**. It displays system hostname, model, architecture, target, firmware and kernel versions, uptime, load average and interface protocol/state/address information.
+RouterOS now uses standard OpenWrt LuCI applications instead of custom UI code:
+- **luci-app-firewall**: Firewall configuration
+- **luci-proto-wireguard**: WireGuard VPN configuration
+- **luci-proto-openvpn**: OpenVPN configuration
+- **luci-app-qosify**: QoS configuration (via upstream qosify)
 
-## Security
+## Migration
 
-The page only reads the ubus methods system.board, system.info and network.interface.dump. Its dedicated rpcd ACL grants read-only access to those methods. It does not edit UCI configuration or expose command execution.
+The custom RouterOS overview dashboard has been removed from firmware builds. Use the standard LuCI status and network pages instead.
 
-## Scope
+## Remaining Package
 
-This is the initial management dashboard. Network configuration, backup/restore, firmware management and algorithm controls are separate future UI features.
+This package remains in the repository for historical reference but is not included in production firmware builds. It can be safely removed in a future cleanup commit.
+
+## Original Functionality
+
+A small, read-only LuCI overview page for RouterOS that displayed:
+- System hostname, model, architecture, target
+- Firmware and kernel versions
+- Uptime, load average
+- Interface protocol/state/address information
+
+This was the initial management dashboard before migrating to upstream LuCI applications.

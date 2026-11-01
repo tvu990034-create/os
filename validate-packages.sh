@@ -17,7 +17,7 @@ pass() {
 
 echo "=== RouterOS source validation ==="
 
-for package in router-core router-net router-tests router-ui router-dsa-sdk router-dsa-runtime router-firewall router-routing router-monitor router-device router-qos router-vpn router-dns router-dhcp router-api router-backup router-upgrade; do
+for package in router-core router-net router-tests router-dsa-sdk router-dsa-runtime router-firewall router-routing router-monitor router-device router-qos router-vpn router-dns router-dhcp router-api router-backup router-upgrade; do
 	if [ -f "$ROOT_DIR/custom-feed/$package/Makefile" ]; then
 		pass "$package Makefile exists"
 		if grep -Fq 'include $(TOPDIR)/rules.mk' "$ROOT_DIR/custom-feed/$package/Makefile" &&

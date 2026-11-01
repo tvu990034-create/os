@@ -65,7 +65,6 @@ jobs:
           ./scripts/feeds install router-core
           ./scripts/feeds install router-net
           ./scripts/feeds install router-tests
-          ./scripts/feeds install router-ui
           ./scripts/feeds install router-firewall
           ./scripts/feeds install router-routing
           ./scripts/feeds install router-monitor
@@ -82,6 +81,8 @@ jobs:
           ./scripts/feeds install openvpn-openssl
           ./scripts/feeds install luci-base
           ./scripts/feeds install luci-mod-status
+          ./scripts/feeds install luci-proto-wireguard
+          ./scripts/feeds install luci-proto-openvpn
 
           cp "$CONFIG_FILE" .config
           DEVICE_TYPE=basic make defconfig
@@ -95,7 +96,6 @@ jobs:
             package/feeds/routeros/router-core/compile \
             package/feeds/routeros/router-net/compile \
             package/feeds/routeros/router-tests/compile \
-            package/feeds/routeros/router-ui/compile \
             package/feeds/routeros/router-firewall/compile \
             package/feeds/routeros/router-routing/compile \
             package/feeds/routeros/router-monitor/compile \
@@ -109,7 +109,9 @@ jobs:
             package/feeds/routeros/router-upgrade/compile \
             package/feeds/packages/tcfilter/compile \
             package/feeds/packages/wireguard-tools/compile \
-            package/feeds/packages/openvpn-openssl/compile
+            package/feeds/packages/openvpn-openssl/compile \
+            package/feeds/luci/luci-proto-wireguard/compile \
+            package/feeds/luci/luci-proto-openvpn/compile
 
       - name: Compile DSA packages (optional, do not fail)
         working-directory: sdk

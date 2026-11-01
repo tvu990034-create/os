@@ -10,8 +10,10 @@ The current objective is to build a complete, functional router operating system
 
 ## What is Implemented
 
-- ✅ Modular package architecture (router-core, router-net, router-ui, router-tests)
+- ✅ Modular package architecture (router-core, router-net, router-tests)
 - ✅ New subsystem packages (router-firewall, router-routing, router-monitor, router-device)
+- ✅ Additional subsystem packages (router-qos, router-vpn, router-dns, router-dhcp, router-api, router-backup, router-upgrade)
+- ✅ Upstream integration (tcfilter, wireguard-tools, openvpn-openssl, luci-app-qosify, luci-proto-wireguard, luci-proto-openvpn)
 - ✅ Source management and platform architecture
 - ✅ Build scripts and configuration for multiple platforms
 - ✅ First-boot configuration and security defaults
@@ -23,6 +25,10 @@ The current objective is to build a complete, functional router operating system
 - ✅ Firewall validation and diagnostics
 - ✅ Routing status and diagnostics
 - ✅ System and network monitoring
+- ✅ QoS configuration and management
+- ✅ VPN configuration helpers
+- ✅ DNS and DHCP management
+- ✅ Management API integration
 - ✅ Comprehensive documentation
 - ✅ CI for source validation and SDK compilation
 
@@ -32,7 +38,7 @@ The current objective is to build a complete, functional router operating system
 - ⚠️ QEMU boot testing needs runtime validation
 - ⚠️ Networking functionality needs QEMU network tests
 - ⚠️ Physical hardware testing (Dell OptiPlex 3050) not yet performed
-- ⚠️ LuCI management interface needs expansion beyond read-only
+- ⚠️ LuCI uses upstream applications (no custom UI needed)
 - ⚠️ DSA algorithm framework is future work (deferred)
 
 ## Supported Platforms
@@ -57,7 +63,7 @@ Use JOBS=1 on memory-constrained systems.
 
 ## Documentation
 
-- **Architecture**: `docs/architecture/REPOSITORY_ARCHITECTURE.md`, `docs/architecture/SYSTEM_OVERVIEW.md`
+- **Architecture**: `docs/architecture/REPOSITORY_ARCHITECTURE.md`, `docs/architecture/SYSTEM_OVERVIEW.md`, `docs/architecture/upstream-integration.md`
 - **Development**: `docs/development/DEVELOPMENT_GUIDE.md`, `docs/development/ADDING_A_PACKAGE.md`
 - **Platforms**: `docs/platforms/PLATFORM_DEVELOPMENT.md`
 - **User Guide**: `docs/user-guide/INSTALLATION.md`, `docs/user-guide/CONFIGURATION.md`
@@ -70,12 +76,18 @@ Use JOBS=1 on memory-constrained systems.
 custom-feed/
 ├── router-core/         # Core system services
 ├── router-net/          # Network monitoring
-├── router-ui/           # LuCI interface
 ├── router-tests/        # On-device tests
 ├── router-firewall/     # Firewall management
 ├── router-routing/      # Routing utilities
 ├── router-monitor/      # System monitoring
 ├── router-device/       # Hardware discovery
+├── router-qos/          # QoS management (with upstream tcfilter/qosify)
+├── router-vpn/          # VPN helpers (with upstream WireGuard/OpenVPN)
+├── router-dns/          # DNS management
+├── router-dhcp/         # DHCP management
+├── router-api/          # Management API
+├── router-backup/       # Configuration backup
+├── router-upgrade/      # Firmware upgrade
 ├── router-dsa-sdk/      # DSA SDK (future work)
 └── router-dsa-runtime/  # DSA runtime (future work)
 

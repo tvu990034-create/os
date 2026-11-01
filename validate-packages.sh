@@ -33,6 +33,7 @@ for package in router-core router-net router-tests router-dsa-sdk router-dsa-run
 done
 
 SDK_CONFIG="$ROOT_DIR/config/sdk-package-build.config"
+ARM_SDK_CONFIG="$ROOT_DIR/config/sdk-package-build-armsr-armv8.config"
 if [ -f "$SDK_CONFIG" ]; then
 	for package in router-core router-net router-tests; do
 		if grep -Fqx "CONFIG_PACKAGE_${package}=y" "$SDK_CONFIG"; then
@@ -43,6 +44,18 @@ if [ -f "$SDK_CONFIG" ]; then
 	done
 else
 	fail "minimal SDK package-build configuration is missing"
+fi
+
+if [ -f "$ARM_SDK_CONFIG" ]; then
+	for package in router-core router-net router-tests; do
+		if grep -Fqx "CONFIG_PACKAGE_${package}=y" "$ARM_SDK_CONFIG"; then
+			pass "ARM SDK profile selects $package"
+		else
+			fail "ARM SDK profile does not select $package"
+		fi
+	done
+else
+	fail "ARM SDK package-build configuration is missing"
 fi
 
 for script in \

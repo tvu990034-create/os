@@ -12,7 +12,12 @@ REGISTRY = ROOT / "config/platforms.tsv"
 REQUIRED_PACKAGES = (
     "router-core",
     "router-net",
-    "router-ui",
+)
+REQUIRED_LUCI_PACKAGES = (
+    "luci",
+    "luci-base",
+    "luci-mod-admin-full",
+    "luci-app-firewall",
 )
 VALID_STATUSES = {"development", "experimental", "verified", "production-ready"}
 VALID_TYPES = {"generic-pc", "generic-arm64", "generic-vm", "board-specific", "architecture-level"}
@@ -97,6 +102,14 @@ def main() -> int:
         ]
         if missing_packages:
             print(f"FAIL: {profile} is missing RouterOS packages: {', '.join(missing_packages)}")
+            row_failed = True
+
+        missing_luci = [
+            package for package in REQUIRED_LUCI_PACKAGES
+            if f"CONFIG_PACKAGE_{package}=y" not in config_lines
+        ]
+        if missing_luci:
+            print(f"FAIL: {profile} is missing required LuCI packages: {', '.join(missing_luci)}")
             row_failed = True
 
         if row_failed:

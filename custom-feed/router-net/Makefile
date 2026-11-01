@@ -1,16 +1,13 @@
 #
-# Copyright (C) 2026 Router OS Project
-#
-# This is free software, licensed under the GNU General Public License v2.
-# See /LICENSE for more information.
+# RouterOS network extensions.
+# SPDX-License-Identifier: GPL-2.0-only
 #
 
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=router-net
-PKG_RELEASE:=1
-
-PKG_LICENSE:=GPL-2.0
+PKG_RELEASE:=6
+PKG_LICENSE:=GPL-2.0-only
 PKG_MAINTAINER:=Router OS Project
 
 include $(INCLUDE_DIR)/package.mk
@@ -18,26 +15,30 @@ include $(INCLUDE_DIR)/package.mk
 define Package/router-net
   SECTION:=net
   CATEGORY:=Network
-  TITLE:=Router OS Networking Extensions
-  DEPENDS:=+netifd +firewall4 +kmod-nft-core +iproute2
-  DEFAULT:=n
+  TITLE:=RouterOS Networking Extensions
+  DEPENDS:=+procd +uci
+  DEFAULT:=y if TARGET_x86||TARGET_armsr
 endef
 
 define Package/router-net/description
-  Networking extensions for Router OS including monitoring framework
-  and interfaces for future packet processing optimizations.
-  This package provides modular integration points for future DSA implementations.
+ Optional network-device observer and DSA plugin integration tools for RouterOS.
+endef
+
+define Package/router-net/conffiles
+/etc/config/router-net
 endef
 
 define Build/Compile
-	# No compilation needed - shell scripts only
 endef
 
 define Package/router-net/install
-	$(INSTALL_DIR) $(1)/usr/libexec/router-net
 	$(INSTALL_DIR) $(1)/etc/config
-	$(INSTALL_BIN) ./files/*.sh $(1)/usr/libexec/router-net/ 2>/dev/null || true
-	$(INSTALL_CONF) ./files/config/* $(1)/etc/config/ 2>/dev/null || true
+	$(INSTALL_DIR) $(1)/etc/init.d
+	$(INSTALL_DIR) $(1)/usr/libexec/router-net
+	$(INSTALL_CONF) ./files/config/router-net $(1)/etc/config/router-net
+	$(INSTALL_BIN) ./files/init.d/router-net $(1)/etc/init.d/router-net
+	$(INSTALL_BIN) ./files/monitor-interfaces.sh $(1)/usr/libexec/router-net/monitor-interfaces.sh
+	$(INSTALL_BIN) ./files/check-network-health.sh $(1)/usr/libexec/router-net/check-network-health.sh
 endef
 
 $(eval $(call BuildPackage,router-net))

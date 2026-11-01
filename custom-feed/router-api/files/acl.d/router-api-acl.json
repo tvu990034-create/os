@@ -1,0 +1,32 @@
+{
+	"router-api-read": {
+		"description": "Read RouterOS system and network information",
+		"read": {
+			"ubus": {
+				"router-api": [
+					"get_system_info",
+					"get_network_status",
+					"get_monitoring",
+					"get_device_info",
+					"list_backups"
+				]
+			}
+		}
+	},
+	"router-api-write": {
+		"description": "Write RouterOS network and DHCP configuration",
+		"write": {
+			"ubus": {
+				"router-api": [
+					"backup_config",
+					"set_lan_config",
+					"set_wan_config",
+					"set_dhcp_config"
+				]
+			}
+		}
+	},
+	"unauthenticated": {
+		"description": "No RouterOS management API methods are public"
+	}
+}

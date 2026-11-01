@@ -1,0 +1,89 @@
+#!/bin/sh
+# RouterOS QoS validation utility
+
+UCI="uci"
+LOG_TAG="router-qos-validate"
+
+log() {
+	logger -t "$LOG_TAG" "$1"
+}
+
+validate_tc_support() {
+	if ! command -v tc >/dev/null 2>&1; then
+		log "tc command not available"
+		return 1
+	fi
+	
+	# Check for Cake scheduler
+	if tc qdisc show 2>/dev/null | grep -q "cake"; then
+		log "Cake scheduler available"
+	else
+		log "Cake scheduler not loaded (may still be available)"
+	fi
+	
+	# Check for HTB scheduler
+	if tc qdisc show 2>/dev/null | grep -q "htb"; then
+		log "HTB scheduler available"
+	else
+		log "HTB scheduler not loaded (may still be available)"
+	fi
+	
+	return 0
+}
+
+validate_interface() {
+	iface=$1
+	
+	if [ -z "$iface" ]; then
+		log "No interface specified"
+		return 1
+	fi
+	
+	if ! ip link show "$iface" >/dev/null 2>&1; then
+		log "Interface $iface does not exist"
+		return 1
+	fi
+	
+	log "Interface $iface is valid"
+	return 0
+}
+
+validate_bandwidth() {
+	bandwidth=$1
+	
+	# Simple validation: should be a number with optional unit
+	if echo "$bandwidth" | grep -qE "^[0-9]+(kbit|mbit|gbit|bps|kbps|mbps|gbps)?$"; then
+		log "Bandwidth $bandwidth is valid"
+		return 0
+	else
+		log "Invalid bandwidth format: $bandwidth"
+		return 1
+	fi
+}
+
+main() {
+	case "${1:-}" in
+		tc-support)
+			validate_tc_support
+			;;
+		interface)
+			validate_interface "$2"
+			;;
+		bandwidth)
+			validate_bandwidth "$2"
+			;;
+		*)
+			echo "RouterOS QoS Validation"
+			echo ""
+			echo "Usage: $0 <command> [args]"
+			echo ""
+			echo "Commands:"
+			echo "  tc-support    Check tc and scheduler support"
+			echo "  interface     Validate interface exists"
+			echo "  bandwidth     Validate bandwidth format"
+			exit 1
+			;;
+	esac
+}
+
+main "$@"

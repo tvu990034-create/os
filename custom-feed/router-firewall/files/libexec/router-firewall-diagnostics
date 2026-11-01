@@ -1,0 +1,76 @@
+#!/bin/sh
+# RouterOS firewall diagnostics utility
+
+UCI="uci"
+LOG_TAG="router-firewall-diagnostics"
+
+log() {
+	logger -t "$LOG_TAG" "$1"
+}
+
+show_firewall_status() {
+	echo "=== Firewall Status ==="
+	
+	# Check nftables
+	if command -v nft >/dev/null 2>&1; then
+		echo "nftables: available"
+		nft list ruleset 2>/dev/null | head -20
+	else
+		echo "nftables: not available"
+	fi
+	
+	echo ""
+	echo "=== Firewall Zones ==="
+	$UCI show firewall 2>/dev/null | grep -E "zone\.|\.name=" || echo "No zones configured"
+	
+	echo ""
+	echo "=== Firewall Rules ==="
+	$UCI show firewall 2>/dev/null | grep -E "rule\.|\.name=" | head -10
+}
+
+show_active_rules() {
+	echo "=== Active NFT Rules ==="
+	if command -v nft >/dev/null 2>&1; then
+		nft list ruleset 2>/dev/null
+	else
+		echo "nftables not available"
+	fi
+}
+
+show_zone_status() {
+	zone=$1
+	if [ -z "$zone" ]; then
+		echo "Usage: $0 zone-status <zone-name>"
+		exit 1
+	fi
+	
+	echo "=== Zone: $zone ==="
+	$UCI show firewall."$zone" 2>/dev/null || echo "Zone not found"
+}
+
+main() {
+	case "${1:-}" in
+		status)
+			show_firewall_status
+			;;
+		rules)
+			show_active_rules
+			;;
+		zone-status)
+			show_zone_status "$2"
+			;;
+		*)
+			echo "RouterOS Firewall Diagnostics"
+			echo ""
+			echo "Usage: $0 <command> [args]"
+			echo ""
+			echo "Commands:"
+			echo "  status         Show firewall status and zones"
+			echo "  rules          Show active nftables rules"
+			echo "  zone-status    Show specific zone status"
+			exit 1
+			;;
+	esac
+}
+
+main "$@"

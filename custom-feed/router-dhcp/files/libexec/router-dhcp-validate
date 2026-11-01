@@ -1,0 +1,85 @@
+#!/bin/sh
+# RouterOS DHCP validation utility
+
+UCI="uci"
+LOG_TAG="router-dhcp-validate"
+
+log() {
+	logger -t "$LOG_TAG" "$1"
+}
+
+validate_dhcp_server() {
+	if ! /etc/init.d/dnsmasq status >/dev/null 2>&1; then
+		log "dnsmasq (DHCP server) is not running"
+		return 1
+	fi
+	
+	# Check if listening on port 67 (DHCP)
+	if grep -q ":67 " /proc/net/udp 2>/dev/null; then
+		log "DHCP server is listening on port 67"
+		return 0
+	else
+		log "DHCP server is not listening on port 67"
+		return 1
+	fi
+}
+
+validate_dhcp_client() {
+	iface=$1
+	
+	if [ -z "$iface" ]; then
+		log "No interface specified for DHCP client check"
+		return 1
+	fi
+	
+	# Check if interface is configured for DHCP
+	proto=$($UCI -q get network."$iface".proto 2>/dev/null || echo "")
+	if [ "$proto" = "dhcp" ]; then
+		log "Interface $iface is configured for DHCP"
+		return 0
+	else
+		log "Interface $iface is not configured for DHCP (proto: $proto)"
+		return 1
+	fi
+}
+
+validate_dhcp_range() {
+	start=$1
+	limit=$2
+	
+	# Validate DHCP range
+	if [ "$start" -ge 1 ] 2>/dev/null && [ "$limit" -ge 1 ] 2>/dev/null; then
+		log "Valid DHCP range: start=$start, limit=$limit"
+		return 0
+	else
+		log "Invalid DHCP range"
+		return 1
+	fi
+}
+
+main() {
+	case "${1:-}" in
+		server)
+			validate_dhcp_server
+			;;
+		client)
+			validate_dhcp_client "$2"
+			;;
+		range)
+			validate_dhcp_range "$2" "$3"
+			;;
+		*)
+			echo "RouterOS DHCP Validation"
+			echo ""
+			echo "Usage: $0 <command> [args]"
+			echo ""
+			echo "Commands:"
+			echo "  server       Check DHCP server status"
+			echo "  client       Check DHCP client on interface"
+			echo "  range        Validate DHCP range"
+			exit 1
+			;;
+	esac
+}
+
+main "$@"

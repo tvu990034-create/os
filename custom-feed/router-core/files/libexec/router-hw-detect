@@ -1,106 +1,100 @@
 #!/bin/sh
-# Router OS Hardware Detection Script
-# Detects network interfaces and system hardware
+# Read-only hardware inventory for RouterOS diagnostics.
+
+read_sysfs() {
+	[ -r "$1" ] || return 0
+	IFS= read -r value < "$1" || value=
+	[ -n "$value" ] && printf '%s' "$value"
+}
 
 detect_network_interfaces() {
 	echo "=== Network Interfaces ==="
-	if [ -d /sys/class/net ]; then
-		for iface in /sys/class/net/*; do
-			ifname=$(basename "$iface")
-			echo "Interface: $ifname"
-			if [ -e "$iface/address" ]; then
-				mac=$(cat "$iface/address" 2>/dev/null)
-				echo "  MAC: $mac"
-			fi
-			if [ -e "$iface/operstate" ]; then
-				state=$(cat "$iface/operstate" 2>/dev/null)
-				echo "  State: $state"
-			fi
-			if [ -e "$iface/speed" ]; then
-				speed=$(cat "$iface/speed" 2>/dev/null)
-				echo "  Speed: ${speed}Mb/s"
-			fi
-			echo ""
-		done
-	else
-		echo "No network interfaces found in /sys/class/net/"
+	if [ ! -d /sys/class/net ]; then
+		echo "Network sysfs directory unavailable"
+		return
 	fi
+	for iface_path in /sys/class/net/*; do
+		[ -e "$iface_path" ] || continue
+		iface=${iface_path##*/}
+		echo "Interface: $iface"
+		mac="$(read_sysfs "$iface_path/address")"
+		state="$(read_sysfs "$iface_path/operstate")"
+		carrier="$(read_sysfs "$iface_path/carrier")"
+		speed="$(read_sysfs "$iface_path/speed")"
+		[ -n "$mac" ] && echo "  MAC: $mac"
+		[ -n "$state" ] && echo "  Operational state: $state"
+		[ -n "$carrier" ] && echo "  Carrier: $carrier"
+		case "$speed" in
+			''|-1) ;;
+			*[!0-9]*) ;;
+			*) echo "  Link speed: ${speed} Mb/s" ;;
+		esac
+		[ -e "$iface_path/device" ] && echo "  Physical device: yes"
+		echo
+	done
 }
 
 detect_pci_devices() {
 	echo "=== PCI Devices ==="
 	if command -v lspci >/dev/null 2>&1; then
-		lspci 2>/dev/null || echo "lspci failed or no PCI devices"
+		lspci 2>/dev/null || echo "No PCI devices reported"
 	else
-		echo "lspci not available"
+		echo "lspci is not installed"
 	fi
-	echo ""
+	echo
 }
 
 detect_cpu_info() {
 	echo "=== CPU Information ==="
-	if [ -f /proc/cpuinfo ]; then
-		grep -E 'model name|cpu cores|processor|Hardware' /proc/cpuinfo | head -10
+	if [ -r /proc/cpuinfo ]; then
+		grep -E '^(model name|Hardware|CPU architecture|processor|cpu cores)[[:space:]]*:' /proc/cpuinfo | head -20 || true
 	else
-		echo "/proc/cpuinfo not available"
+		echo "/proc/cpuinfo is unavailable"
 	fi
-	echo ""
+	echo
 }
 
 detect_memory_info() {
 	echo "=== Memory Information ==="
-	if command -v free >/dev/null 2>&1; then
-		free -h 2>/dev/null || echo "free command failed"
-	elif [ -f /proc/meminfo ]; then
-		head -5 /proc/meminfo
+	if [ -r /proc/meminfo ]; then
+		grep -E '^(MemTotal|MemFree|MemAvailable|SwapTotal|SwapFree):' /proc/meminfo || true
 	else
-		echo "Memory information not available"
+		echo "/proc/meminfo is unavailable"
 	fi
-	echo ""
+	echo
 }
 
 detect_storage_info() {
 	echo "=== Storage Information ==="
-	if [ -d /sys/block ]; then
-		for block in /sys/block/*; do
-			bdev=$(basename "$block")
-			echo "Block device: $bdev"
-			if [ -e "$block/size" ]; then
-				size=$(cat "$block/size" 2>/dev/null)
-				sectors_to_mb=$((size / 2048))
-				echo "  Size: ${sectors_to_mb}MB"
-			fi
-			echo ""
-		done
-	else
-		echo "No block devices found"
+	if [ ! -d /sys/block ]; then
+		echo "Block-device sysfs directory unavailable"
+		return
 	fi
-}
-
-detect_architecture() {
-	echo "=== System Architecture ==="
-	if command -v uname >/dev/null 2>&1; then
-		uname -a
-	else
-		echo "uname command not available"
-	fi
-	echo ""
+	for block_path in /sys/block/*; do
+		[ -e "$block_path" ] || continue
+		device=${block_path##*/}
+		sectors="$(read_sysfs "$block_path/size")"
+		echo "Block device: $device"
+		case "$sectors" in
+			''|*[!0-9]*) ;;
+			*) echo "  Capacity: $((sectors / 2048)) MiB" ;;
+		esac
+	done
+	echo
 }
 
 main() {
 	echo "======================================"
-	echo "Router OS Hardware Detection"
+	echo "RouterOS Hardware Inventory"
 	echo "======================================"
-	echo ""
-	detect_architecture
+	uname -a 2>/dev/null || true
+	echo
 	detect_network_interfaces
 	detect_pci_devices
 	detect_cpu_info
 	detect_memory_info
 	detect_storage_info
-	echo "======================================"
-	echo "Detection Complete"
-	echo "======================================"
+	echo "Inventory complete"
 }
 
 main "$@"

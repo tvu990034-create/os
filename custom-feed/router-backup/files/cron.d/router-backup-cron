@@ -1,0 +1,2 @@
+# Automated daily backup at 3 AM
+0 3 * * * /usr/libexec/router-backup/router-backup backup

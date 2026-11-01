@@ -1,0 +1,90 @@
+#!/bin/sh
+# RouterOS device information utility
+
+LOG_TAG="router-device-info"
+
+log() {
+	logger -t "$LOG_TAG" "$1"
+}
+
+show_cpu_info() {
+	echo "=== CPU Information ==="
+	if [ -f /proc/cpuinfo ]; then
+		grep -E "model name|cpu cores|processor" /proc/cpuinfo | head -10
+	else
+		echo "CPU info unavailable"
+	fi
+}
+
+show_memory_info() {
+	echo "=== Memory Information ==="
+	if [ -f /proc/meminfo ]; then
+		grep -E "MemTotal|MemAvailable" /proc/meminfo
+	else
+		echo "Memory info unavailable"
+	fi
+}
+
+show_network_interfaces() {
+	echo "=== Network Interfaces ==="
+	ip link show 2>/dev/null || echo "Network info unavailable"
+}
+
+show_storage_info() {
+	echo "=== Storage Information ==="
+	df -h 2>/dev/null || echo "Storage info unavailable"
+}
+
+show_system_info() {
+	echo "=== System Information ==="
+	echo "Hostname: $(hostname 2>/dev/null || echo 'unknown')"
+	echo "Kernel: $(uname -r 2>/dev/null || echo 'unknown')"
+	echo "Architecture: $(uname -m 2>/dev/null || echo 'unknown')"
+}
+
+main() {
+	case "${1:-}" in
+		cpu)
+			show_cpu_info
+			;;
+		memory)
+			show_memory_info
+			;;
+		network)
+			show_network_interfaces
+			;;
+		storage)
+			show_storage_info
+			;;
+		system)
+			show_system_info
+			;;
+		all)
+			show_system_info
+			echo ""
+			show_cpu_info
+			echo ""
+			show_memory_info
+			echo ""
+			show_network_interfaces
+			echo ""
+			show_storage_info
+			;;
+		*)
+			echo "RouterOS Device Information"
+			echo ""
+			echo "Usage: $0 <command>"
+			echo ""
+			echo "Commands:"
+			echo "  cpu          Show CPU information"
+			echo "  memory       Show memory information"
+			echo "  network      Show network interfaces"
+			echo "  storage      Show storage information"
+			echo "  system       Show system information"
+			echo "  all          Show all device information"
+			exit 1
+			;;
+	esac
+}
+
+main "$@"

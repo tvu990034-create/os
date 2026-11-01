@@ -1,153 +1,174 @@
-#!/bin/bash
-# Validate Router OS Package Structure
-# This script validates package Makefiles and file structure without building
+#!/bin/sh
+# Validate package structure, registered platform profiles, shell, UCI and DSA ABI.
 
-echo "=== Router OS Package Validation ==="
-echo ""
+set -eu
 
-VALIDATION_FAILED=0
+ROOT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+FAILED=0
 
-# Function to check package
-check_package() {
-	local pkg_dir=$1
-	local pkg_name=$(basename "$pkg_dir")
-	
-	echo "Checking package: $pkg_name"
-	
-	# Check for Makefile
-	if [ ! -f "$pkg_dir/Makefile" ]; then
-		echo "  ✗ Makefile missing"
-		VALIDATION_FAILED=1
-		return
-	fi
-	echo "  ✓ Makefile exists"
-	
-	# Check Makefile syntax (basic)
-	if grep -q "include \$(TOPDIR)/rules.mk" "$pkg_dir/Makefile"; then
-		echo "  ✓ Makefile includes rules.mk"
-	else
-		echo "  ✗ Makefile doesn't include rules.mk"
-		VALIDATION_FAILED=1
-	fi
-	
-	if grep -q "include \$(INCLUDE_DIR)/package.mk" "$pkg_dir/Makefile"; then
-		echo "  ✓ Makefile includes package.mk"
-	else
-		echo "  ✗ Makefile doesn't include package.mk"
-		VALIDATION_FAILED=1
-	fi
-	
-	if grep -q "\$(eval \$(call BuildPackage," "$pkg_dir/Makefile"; then
-		echo "  ✓ Makefile calls BuildPackage"
-	else
-		echo "  ✗ Makefile doesn't call BuildPackage"
-		VALIDATION_FAILED=1
-	fi
-	
-	# Check for files directory
-	if [ -d "$pkg_dir/files" ]; then
-		echo "  ✓ files/ directory exists"
-		
-		# Check for executable scripts
-		for script in $(find "$pkg_dir/files" -type f -name "*.sh"); do
-			if [ -x "$script" ]; then
-				echo "    ✓ $(basename $script) is executable"
-			else
-				echo "    ⚠ $(basename $script) is not executable"
-			fi
-		done
-	else
-		echo "  ℹ files/ directory not present (OK for skeleton packages)"
-	fi
-	
-	# Check for README
-	if [ -f "$pkg_dir/README.md" ]; then
-		echo "  ✓ README.md exists"
-	else
-		echo "  ℹ README.md not present (optional)"
-	fi
-	
-	echo ""
+fail() {
+	echo "FAIL: $1"
+	FAILED=1
 }
 
-# Check all packages in custom-feed
-for pkg_dir in custom-feed/*/; do
-	if [ -d "$pkg_dir" ]; then
-		check_package "$pkg_dir"
+pass() {
+	echo "PASS: $1"
+}
+
+echo "=== RouterOS source validation ==="
+
+for package in router-core router-net router-tests router-dsa-sdk router-dsa-runtime router-firewall router-routing router-monitor router-device router-qos router-vpn router-dns router-dhcp router-api router-backup router-upgrade; do
+	if [ -f "$ROOT_DIR/custom-feed/$package/Makefile" ]; then
+		pass "$package Makefile exists"
+		if grep -Fq 'include $(TOPDIR)/rules.mk' "$ROOT_DIR/custom-feed/$package/Makefile" &&
+		   grep -Fq 'include $(INCLUDE_DIR)/package.mk' "$ROOT_DIR/custom-feed/$package/Makefile" &&
+		   grep -Fq '$(eval $(call BuildPackage,' "$ROOT_DIR/custom-feed/$package/Makefile"; then
+			pass "$package Makefile has the required OpenWrt package structure"
+		else
+			fail "$package Makefile is missing a required OpenWrt include or BuildPackage call"
+		fi
+	else
+		fail "$package Makefile is missing"
 	fi
 done
 
-# Check custom directory structure
-echo "Checking custom/ directory structure"
-if [ -d "custom" ]; then
-	echo "  ✓ custom/ exists"
-	
-	if [ -d "custom/build" ]; then
-		echo "  ✓ custom/build/ exists"
-	else
-		echo "  ✗ custom/build/ missing"
-		VALIDATION_FAILED=1
-	fi
-	
-	if [ -d "custom/configs" ]; then
-		echo "  ✓ custom/configs/ exists"
-	else
-		echo "  ✗ custom/configs/ missing"
-		VALIDATION_FAILED=1
-	fi
-	
-	if [ -d "custom/kernel" ]; then
-		echo "  ✓ custom/kernel/ exists"
-	else
-		echo "  ✗ custom/kernel/ missing"
-		VALIDATION_FAILED=1
-	fi
-	
-	if [ -d "custom/docs" ]; then
-		echo "  ✓ custom/docs/ exists"
-	else
-		echo "  ✗ custom/docs/ missing"
-		VALIDATION_FAILED=1
-	fi
+SDK_CONFIG="$ROOT_DIR/config/sdk-package-build.config"
+ARM_SDK_CONFIG="$ROOT_DIR/config/sdk-package-build-armsr-armv8.config"
+if [ -f "$SDK_CONFIG" ]; then
+	for package in router-core router-net router-tests; do
+		if grep -Fqx "CONFIG_PACKAGE_${package}=y" "$SDK_CONFIG"; then
+			pass "SDK profile selects $package"
+		else
+			fail "SDK profile does not select $package"
+		fi
+	done
 else
-	echo "  ✗ custom/ missing"
-	VALIDATION_FAILED=1
+	fail "minimal SDK package-build configuration is missing"
 fi
 
-echo ""
-
-# Check setup script
-if [ -f "setup.sh" ]; then
-	if [ -x "setup.sh" ]; then
-		echo "✓ setup.sh exists and is executable"
-	else
-		echo "⚠ setup.sh exists but is not executable"
-	fi
+if [ -f "$ARM_SDK_CONFIG" ]; then
+	for package in router-core router-net router-tests; do
+		if grep -Fqx "CONFIG_PACKAGE_${package}=y" "$ARM_SDK_CONFIG"; then
+			pass "ARM SDK profile selects $package"
+		else
+			fail "ARM SDK profile does not select $package"
+		fi
+	done
 else
-	echo "✗ setup.sh missing"
-	VALIDATION_FAILED=1
+	fail "ARM SDK package-build configuration is missing"
 fi
 
-echo ""
-
-# Check documentation
-echo "Checking documentation"
-for doc in README.md BUILD_INSTRUCTIONS.md ARCHITECTURE.md; do
-	if [ -f "$doc" ]; then
-		echo "  ✓ $doc exists"
+for script in \
+	"$ROOT_DIR/setup.sh" \
+	"$ROOT_DIR/validate-packages.sh" \
+	"$ROOT_DIR/scripts/build-platform.sh" \
+	"$ROOT_DIR/scripts/build-x86_64.sh" \
+	"$ROOT_DIR/scripts/build-armsr-armv8.sh" \
+	"$ROOT_DIR/scripts/install-build-deps-ubuntu.sh" \
+	"$ROOT_DIR/custom-feed/router-core/files/init.d/router-core" \
+	"$ROOT_DIR/custom-feed/router-core/files/libexec/router-hw-detect" \
+	"$ROOT_DIR/custom-feed/router-core/files/uci-defaults/99_router-core" \
+	"$ROOT_DIR/custom-feed/router-net/files/init.d/router-net" \
+	"$ROOT_DIR/custom-feed/router-net/files/monitor-interfaces.sh" \
+	"$ROOT_DIR/custom-feed/router-tests/files/test-config-syntax.sh" \
+	"$ROOT_DIR/custom-feed/router-tests/files/test-hardware-detect.sh" \
+	"$ROOT_DIR/custom-feed/router-tests/files/test-network-validation.sh" \
+	"$ROOT_DIR/tests/dsa-sdk/test-plugin.sh" \
+	"$ROOT_DIR/tests/router-core/test-firstboot-network.sh" \
+	"$ROOT_DIR/tests/setup/test-setup-overlay.sh" \
+	"$ROOT_DIR/tests/router-api/test-rpcd-plugin.sh"; do
+	if [ -f "$script" ] && sh -n "$script"; then
+		relative_path=${script#"$ROOT_DIR"/}
+		pass "shell syntax: $relative_path"
 	else
-		echo "  ✗ $doc missing"
-		VALIDATION_FAILED=1
+		fail "shell syntax: $script"
 	fi
 done
 
-echo ""
+if command -v python3 >/dev/null 2>&1 && python3 --version >/dev/null 2>&1; then
+	if python3 "$ROOT_DIR/scripts/validate-platforms.py"; then
+		pass "registered platform profiles"
+	else
+		fail "registered platform profiles"
+	fi
+	if python3 "$ROOT_DIR/scripts/validate-uci.py"; then
+		pass "UCI configuration syntax"
+	else
+		fail "UCI configuration syntax"
+	fi
+	if python3 "$ROOT_DIR/scripts/validate-ui.py"; then
+		pass "LuCI dashboard metadata and read-only ACL"
+	else
+		fail "LuCI dashboard metadata and read-only ACL"
+	fi
+else
+	echo "WARNING: python3 not found, skipping platform, UCI and UI validation"
+fi
 
-# Summary
-if [ $VALIDATION_FAILED -eq 0 ]; then
-	echo "=== Validation PASSED ==="
+if sh "$ROOT_DIR/scripts/validate-package-files.sh"; then
+	pass "package file existence validation"
+else
+	fail "package file existence validation"
+fi
+
+if [ -x "$ROOT_DIR/tests/setup/test-setup-overlay.sh" ]; then
+	if "$ROOT_DIR/tests/setup/test-setup-overlay.sh"; then
+		pass "board-aware overlay synchronization and conflict protection"
+	else
+		fail "board-aware overlay synchronization and conflict protection"
+	fi
+else
+	fail "rootfs overlay setup test is not executable"
+fi
+
+if [ -x "$ROOT_DIR/tests/router-core/test-firstboot-network.sh" ]; then
+	if "$ROOT_DIR/tests/router-core/test-firstboot-network.sh"; then
+		pass "first-boot defaults and board-network preservation"
+	else
+		fail "first-boot network test"
+	fi
+else
+	fail "first-boot network test is not executable"
+fi
+
+if command -v node >/dev/null 2>&1 && node --version >/dev/null 2>&1; then
+	if node --check "$ROOT_DIR/custom-feed/router-ui/files/www/luci-static/resources/view/routeros/overview.js"; then
+		pass "LuCI dashboard JavaScript syntax"
+	else
+		fail "LuCI dashboard JavaScript syntax"
+	fi
+else
+	echo "WARNING: nodejs not found, skipping LuCI JavaScript validation"
+fi
+
+if [ -x "$ROOT_DIR/tests/dsa-sdk/test-plugin.sh" ]; then
+	if command -v cc >/dev/null 2>&1; then
+		if "$ROOT_DIR/tests/dsa-sdk/test-plugin.sh"; then
+			pass "DSA plugin ABI and runner tests"
+		else
+			fail "DSA plugin ABI test"
+		fi
+	else
+		echo "WARNING: C compiler not found, skipping DSA plugin ABI test"
+	fi
+else
+	fail "DSA plugin ABI test script is not executable"
+fi
+
+if [ -x "$ROOT_DIR/tests/router-api/test-rpcd-plugin.sh" ]; then
+	if "$ROOT_DIR/tests/router-api/test-rpcd-plugin.sh"; then
+		pass "rpcd API protocol and configuration validation"
+	else
+		fail "rpcd API protocol and configuration validation"
+	fi
+else
+	fail "rpcd API test script is not executable"
+fi
+
+if [ "$FAILED" -eq 0 ]; then
+	echo "=== RouterOS source validation PASSED ==="
 	exit 0
-else
-	echo "=== Validation FAILED ==="
-	exit 1
 fi
+
+echo "=== RouterOS source validation FAILED ==="
+exit 1

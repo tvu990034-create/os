@@ -1,0 +1,78 @@
+#!/bin/sh
+# RouterOS DNS validation utility
+
+UCI="uci"
+LOG_TAG="router-dns-validate"
+
+log() {
+	logger -t "$LOG_TAG" "$1"
+}
+
+validate_dnsmasq() {
+	if ! /etc/init.d/dnsmasq status >/dev/null 2>&1; then
+		log "dnsmasq is not running"
+		return 1
+	fi
+	
+	# Check if listening on port 53
+	if grep -q ":53 " /proc/net/udp 2>/dev/null || grep -q ":53 " /proc/net/tcp 2>/dev/null; then
+		log "dnsmasq is listening on port 53"
+		return 0
+	else
+		log "dnsmasq is not listening on port 53"
+		return 1
+	fi
+}
+
+validate_dns_server() {
+	server=$1
+	
+	# Basic IP validation
+	if echo "$server" | grep -qE "^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$"; then
+		log "Valid DNS server IP: $server"
+		return 0
+	else
+		log "Invalid DNS server IP: $server"
+		return 1
+	fi
+}
+
+validate_domain() {
+	domain=$1
+	
+	# Basic domain validation
+	if echo "$domain" | grep -qE "^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$"; then
+		log "Valid domain: $domain"
+		return 0
+	else
+		log "Invalid domain: $domain"
+		return 1
+	fi
+}
+
+main() {
+	case "${1:-}" in
+		dnsmasq)
+			validate_dnsmasq
+			;;
+		server)
+			validate_dns_server "$2"
+			;;
+		domain)
+			validate_domain "$2"
+			;;
+		*)
+			echo "RouterOS DNS Validation"
+			echo ""
+			echo "Usage: $0 <command> [args]"
+			echo ""
+			echo "Commands:"
+			echo "  dnsmasq      Check dnsmasq status"
+			echo "  server       Validate DNS server IP"
+			echo "  domain       Validate domain name"
+			exit 1
+			;;
+	esac
+}
+
+main "$@"

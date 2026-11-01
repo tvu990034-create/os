@@ -1,0 +1,61 @@
+#!/bin/sh
+# RouterOS routing status utility
+
+LOG_TAG="router-routing-status"
+
+log() {
+	logger -t "$LOG_TAG" "$1"
+}
+
+show_routing_table() {
+	echo "=== Routing Table ==="
+	ip route show 2>/dev/null || echo "Unable to show routing table"
+}
+
+show_default_route() {
+	echo "=== Default Route ==="
+	ip route show default 2>/dev/null || echo "No default route configured"
+}
+
+show_interface_routes() {
+	echo "=== Interface Routes ==="
+	for iface in $(ip link show 2>/dev/null | grep -E "^[0-9]+:" | awk '{print $2}' | tr -d ':'); do
+		echo "Interface: $iface"
+		ip route show dev "$iface" 2>/dev/null || true
+	done
+}
+
+main() {
+	case "${1:-}" in
+		table)
+			show_routing_table
+			;;
+		default)
+			show_default_route
+			;;
+		interfaces)
+			show_interface_routes
+			;;
+		all)
+			show_routing_table
+			echo ""
+			show_default_route
+			echo ""
+			show_interface_routes
+			;;
+		*)
+			echo "RouterOS Routing Status"
+			echo ""
+			echo "Usage: $0 <command>"
+			echo ""
+			echo "Commands:"
+			echo "  table       Show routing table"
+			echo "  default     Show default route"
+			echo "  interfaces  Show interface-specific routes"
+			echo "  all         Show all routing information"
+			exit 1
+			;;
+	esac
+}
+
+main "$@"

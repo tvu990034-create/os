@@ -1,0 +1,11 @@
+{
+	"routeros-dashboard": {
+		"description": "Read-only access to RouterOS system and interface status",
+		"read": {
+			"ubus": {
+				"system": [ "board", "info" ],
+				"network.interface": [ "dump" ]
+			}
+		}
+	}
+}

@@ -1,0 +1,65 @@
+#!/bin/sh
+# RouterOS logging configuration
+
+UCI="uci"
+LOG_TAG="router-logging"
+
+log() {
+	logger -t "$LOG_TAG" "$1"
+}
+
+configure_system_logging() {
+	# Configure system log size limits
+	$UCI set system.@system[0].log_size='64'
+	$UCI set system.@system[0].log_output='file'
+	$UCI set system.@system[0].log_file='/var/log/messages'
+	
+	# Configure log rotation
+	$UCI set system.@system[0].log_rotate_size='64'
+	$UCI set system.@system[0].log_rotate_count='3'
+	
+	$UCI commit system
+	/etc/init.d/log reload
+	
+	log "System logging configured: 64MB size, 3 rotations"
+}
+
+configure_cron_logging() {
+	# Add cron job for daily log cleanup
+	cat > /etc/crontabs/root <<'EOF'
+# Rotate and clean logs daily
+0 0 * * * /usr/sbin/logrotate /etc/logrotate.conf
+EOF
+	
+	/etc/init.d/cron reload
+	log "Cron log rotation configured"
+}
+
+create_logrotate_conf() {
+	cat > /etc/logrotate.conf <<'EOF'
+/var/log/messages {
+	rotate 3
+	daily
+	missingok
+	notifempty
+	compress
+	delaycompress
+	sharedscripts
+	postrotate
+		/etc/init.d/log reload >/dev/null 2>&1 || true
+	endscript
+}
+EOF
+	
+	log "Logrotate configuration created"
+}
+
+main() {
+	configure_system_logging
+	configure_cron_logging
+	create_logrotate_conf
+	
+	log "RouterOS logging configuration complete"
+}
+
+main "$@"

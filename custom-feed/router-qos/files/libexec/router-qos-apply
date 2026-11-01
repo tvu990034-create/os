@@ -1,0 +1,106 @@
+#!/bin/sh
+# RouterOS QoS apply utility
+
+UCI="uci"
+LOG_TAG="router-qos-apply"
+
+log() {
+	logger -t "$LOG_TAG" "$1"
+}
+
+apply_simple_qos() {
+	iface=$1
+	bandwidth=$2
+	
+	if [ -z "$iface" ] || [ -z "$bandwidth" ]; then
+		echo "Usage: $0 simple <interface> <bandwidth>"
+		exit 1
+	fi
+	
+	if ! ip link show "$iface" >/dev/null 2>&1; then
+		log "Interface $iface does not exist"
+		exit 1
+	fi
+	
+	# Remove existing qdisc
+	tc qdisc del dev "$iface" root 2>/dev/null || true
+	
+	# Add Cake scheduler
+	if tc qdisc add dev "$iface" root cake bandwidth "$bandwidth" 2>/dev/null; then
+		log "Applied Cake QoS on $iface with bandwidth $bandwidth"
+		# Persist configuration via UCI
+		uci set qos."$iface"=qos
+		uci set qos."$iface".interface="$iface"
+		uci set qos."$iface".bandwidth="$bandwidth"
+		uci set qos."$iface".enabled="1"
+		uci commit qos
+		echo "QoS applied successfully"
+	else
+		log "Failed to apply Cake QoS, trying HTB"
+		# Fallback to HTB
+		tc qdisc add dev "$iface" root handle 1: htb default 10
+		tc class add dev "$iface" parent 1: classid 1:1 htb rate "$bandwidth"
+		tc class add dev "$iface" parent 1:1 classid 1:10 htb rate "$bandwidth"
+		log "Applied HTB QoS on $iface with bandwidth $bandwidth"
+		# Persist via UCI
+		uci set qos."$iface"=qos
+		uci set qos."$iface".interface="$iface"
+		uci set qos."$iface".bandwidth="$bandwidth"
+		uci set qos."$iface".scheduler="htb"
+		uci set qos."$iface".enabled="1"
+		uci commit qos
+		echo "QoS applied successfully (HTB fallback)"
+	fi
+}
+
+remove_qos() {
+	iface=$1
+	
+	if [ -z "$iface" ]; then
+		echo "Usage: $0 remove <interface>"
+		exit 1
+	fi
+	
+	tc qdisc del dev "$iface" root 2>/dev/null
+	log "Removed QoS from $iface"
+	echo "QoS removed successfully"
+}
+
+show_qos_status() {
+	iface=${1:-}
+	
+	if [ -n "$iface" ]; then
+		echo "=== QoS Status for $iface ==="
+		tc qdisc show dev "$iface" 2>/dev/null || echo "No QoS configured on $iface"
+	else
+		echo "=== QoS Status for All Interfaces ==="
+		tc qdisc show 2>/dev/null || echo "No QoS configured"
+	fi
+}
+
+main() {
+	case "${1:-}" in
+		simple)
+			apply_simple_qos "$2" "$3"
+			;;
+		remove)
+			remove_qos "$2"
+			;;
+		status)
+			show_qos_status "$2"
+			;;
+		*)
+			echo "RouterOS QoS Apply"
+			echo ""
+			echo "Usage: $0 <command> [args]"
+			echo ""
+			echo "Commands:"
+			echo "  simple <iface> <bw>  Apply simple QoS with Cake/HTB"
+			echo "  remove <iface>       Remove QoS from interface"
+			echo "  status [iface]       Show QoS status"
+			exit 1
+			;;
+	esac
+}
+
+main "$@"

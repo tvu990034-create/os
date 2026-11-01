@@ -1,0 +1,13 @@
+{
+	"admin/status/routeros": {
+		"title": "RouterOS",
+		"order": 1,
+		"action": {
+			"type": "view",
+			"path": "routeros/overview"
+		},
+		"depends": {
+			"acl": [ "routeros-dashboard" ]
+		}
+	}
+}

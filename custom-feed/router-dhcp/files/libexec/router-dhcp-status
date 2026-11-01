@@ -1,0 +1,75 @@
+#!/bin/sh
+# RouterOS DHCP status utility
+
+UCI="uci"
+LOG_TAG="router-dhcp-status"
+
+show_dhcp_leases() {
+	echo "=== DHCP Leases ==="
+	cat /tmp/dhcp.leases 2>/dev/null || echo "No DHCP leases available"
+}
+
+show_dhcp_config() {
+	echo "=== DHCP Configuration ==="
+	$UCI show dhcp 2>/dev/null || echo "No DHCP configuration found"
+}
+
+show_dhcp_pools() {
+	echo "=== DHCP Pools ==="
+	$UCI show dhcp 2>/dev/null | grep -E "start|limit|leasetime" || echo "No pool information"
+}
+
+show_dhcp_status() {
+	iface=${1:-lan}
+	
+	echo "=== DHCP Status for $iface ==="
+	ignore=$($UCI -q get dhcp."$iface".ignore 2>/dev/null || echo "0")
+	if [ "$ignore" = "1" ]; then
+		echo "DHCP is disabled on $iface"
+	else
+		echo "DHCP is enabled on $iface"
+	fi
+	
+	start=$($UCI -q get dhcp."$iface".start 2>/dev/null || echo "unknown")
+	limit=$($UCI -q get dhcp."$iface".limit 2>/dev/null || echo "unknown")
+	echo "Pool: $start - $((start + limit - 1))"
+}
+
+main() {
+	case "${1:-}" in
+		leases)
+			show_dhcp_leases
+			;;
+		config)
+			show_dhcp_config
+			;;
+		pools)
+			show_dhcp_pools
+			;;
+		status)
+			show_dhcp_status "$2"
+			;;
+		all)
+			show_dhcp_config
+			echo ""
+			show_dhcp_pools
+			echo ""
+			show_dhcp_leases
+			;;
+		*)
+			echo "RouterOS DHCP Status"
+			echo ""
+			echo "Usage: $0 <command> [args]"
+			echo ""
+			echo "Commands:"
+			echo "  leases       Show DHCP leases"
+			echo "  config       Show DHCP configuration"
+			echo "  pools        Show DHCP pools"
+			echo "  status       Show DHCP status for interface"
+			echo "  all          Show all DHCP information"
+			exit 1
+			;;
+	esac
+}
+
+main "$@"

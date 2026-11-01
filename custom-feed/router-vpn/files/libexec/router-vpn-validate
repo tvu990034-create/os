@@ -1,0 +1,94 @@
+#!/bin/sh
+# RouterOS VPN validation utility
+
+UCI="uci"
+LOG_TAG="router-vpn-validate"
+
+log() {
+	logger -t "$LOG_TAG" "$1"
+}
+
+validate_wireguard_support() {
+	if ! command -v wg >/dev/null 2>&1; then
+		log "WireGuard tools not available"
+		return 1
+	fi
+	
+	if lsmod 2>/dev/null | grep -q "wireguard"; then
+		log "WireGuard kernel module loaded"
+	else
+		log "WireGuard kernel module not loaded (may load on demand)"
+	fi
+	
+	return 0
+}
+
+validate_wg_config() {
+	iface=$1
+	
+	if [ -z "$iface" ]; then
+		return 1
+	fi
+	
+	if [ -f "/etc/config/wireguard" ]; then
+		if uci show "wireguard.$iface" >/dev/null 2>&1; then
+			log "WireGuard config exists for $iface"
+			return 0
+		fi
+	fi
+	
+	return 1
+}
+
+validate_key_format() {
+	key=$1
+	
+	# WireGuard keys are base64 encoded, 44 characters
+	if echo "$key" | grep -qE "^[A-Za-z0-9+/]{44}=$"; then
+		log "Valid WireGuard key format"
+		return 0
+	else
+		log "Invalid WireGuard key format"
+		return 1
+	fi
+}
+
+validate_endpoint() {
+	endpoint=$1
+	
+	# Format: host:port
+	if echo "$endpoint" | grep -qE "^[a-zA-Z0-9.-]+:[0-9]+$"; then
+		log "Valid endpoint format"
+		return 0
+	else
+		log "Invalid endpoint format"
+		return 1
+	fi
+}
+
+main() {
+	case "${1:-}" in
+		wg-support)
+			validate_wireguard_support
+			;;
+		key)
+			validate_key_format "$2"
+			;;
+		endpoint)
+			validate_endpoint "$2"
+			;;
+		*)
+			echo "RouterOS VPN Validation"
+			echo ""
+			echo "Usage: $0 <command> [args]"
+			echo ""
+			echo "Commands:"
+			echo "  wg-support   Check WireGuard support"
+			echo "  key           Validate WireGuard key format"
+			echo "  endpoint      Validate endpoint format"
+			exit 1
+			;;
+	esac
+}
+
+main "$@"

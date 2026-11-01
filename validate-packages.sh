@@ -75,8 +75,8 @@ for script in \
 	"$ROOT_DIR/custom-feed/router-tests/files/test-network-validation.sh" \
 	"$ROOT_DIR/tests/dsa-sdk/test-plugin.sh" \
 	"$ROOT_DIR/tests/router-core/test-firstboot-network.sh" \
-	"$ROOT_DIR/tests/setup/test-setup-overlay.sh" \\
-\t"$ROOT_DIR/tests/router-api/test-rpcd-plugin.sh"; do
+	"$ROOT_DIR/tests/setup/test-setup-overlay.sh" \
+	"$ROOT_DIR/tests/router-api/test-rpcd-plugin.sh"; do
 	if [ -f "$script" ] && sh -n "$script"; then
 		relative_path=${script#"$ROOT_DIR"/}
 		pass "shell syntax: $relative_path"

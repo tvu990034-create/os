@@ -1,13 +1,44 @@
 #!/bin/sh
-# Exercise rpcd plugin discovery, JSON responses and request validation.
+# Exercise rpcd protocol, ACL scope, network changes and input validation.
 
 set -eu
 ROOT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
 PLUGIN="$ROOT_DIR/custom-feed/router-api/files/router-api"
+ACL="$ROOT_DIR/custom-feed/router-api/files/acl.d/router-api-acl.json"
 TMP_DIR=$(mktemp -d)
 trap 'rm -rf "$TMP_DIR"' EXIT HUP INT TERM
 
-mkdir -p "$TMP_DIR/bin" "$TMP_DIR/usr/libexec/router-core"
+mkdir -p "$TMP_DIR/bin" "$TMP_DIR/usr/libexec/router-core" \
+	"$TMP_DIR/sys-class-net/br-lan/brif" "$TMP_DIR/sys-class-net/eth0" \
+	"$TMP_DIR/sys-class-net/eth1"
+: > "$TMP_DIR/sys-class-net/br-lan/brif/eth0"
+
+python3 - "$ACL" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as stream:
+    acl = json.load(stream)
+
+read_methods = set(acl["router-api-read"]["read"]["ubus"]["router-api"])
+write_methods = set(acl["router-api-write"]["write"]["ubus"]["router-api"])
+assert read_methods == {
+    "get_system_info", "get_network_status", "get_monitoring",
+    "get_device_info", "list_backups",
+}
+assert write_methods == {
+    "backup_config", "set_lan_config", "set_wan_config", "set_dhcp_config",
+}
+for role in ("router-api-read", "router-api-write"):
+    permissions = acl[role]
+    assert "uci" not in permissions.get("read", {})
+    assert "uci" not in permissions.get("write", {})
+    assert "file" not in permissions.get("read", {})
+    assert "file" not in permissions.get("write", {})
+assert not acl["unauthenticated"].get("read")
+assert not acl["unauthenticated"].get("write")
+PY
+
 cat > "$TMP_DIR/jshn.sh" <<'JSHN'
 json_load() {
 	_JSHN_INPUT=$1
@@ -19,6 +50,9 @@ json_get_var() {
 		IPADDR) IPADDR=$_JSHN_VALUE ;;
 		NETMASK) NETMASK=$_JSHN_VALUE ;;
 		PROTO) PROTO=$_JSHN_VALUE ;;
+		DEVICE) DEVICE=$_JSHN_VALUE ;;
+		REQUEST_DEVICE) REQUEST_DEVICE=$_JSHN_VALUE ;;
+		GATEWAY) GATEWAY=$_JSHN_VALUE ;;
 		START) START=$_JSHN_VALUE ;;
 		LIMIT) LIMIT=$_JSHN_VALUE ;;
 		LEASE) LEASE=$_JSHN_VALUE ;;
@@ -36,7 +70,16 @@ cat > "$TMP_DIR/bin/uci" <<'UCI'
 #!/bin/sh
 if [ "$1" = "-q" ]; then shift; fi
 if [ "$1" = "get" ]; then
-	case "$2" in network.lan|network.wan) echo interface; exit 0 ;; esac
+	case "$2" in
+		network.lan) echo interface; exit 0 ;;
+		network.lan.device) echo br-lan; exit 0 ;;
+		network.wan) echo interface; exit 0 ;;
+		network.wan.device)
+			[ -n "$WAN_DEVICE" ] || exit 1
+			echo "$WAN_DEVICE"
+			exit 0
+			;;
+	esac
 fi
 printf '%s\n' "$*" >> "$UCI_LOG"
 UCI
@@ -53,11 +96,11 @@ cat > "$TMP_DIR/usr/libexec/router-core/router-status" <<'REPORT'
 echo router-status-ok
 REPORT
 chmod +x "$TMP_DIR/bin/uci" "$TMP_DIR/bin/network-init" "$TMP_DIR/bin/dnsmasq-init" "$TMP_DIR/usr/libexec/router-core/router-status"
-export UCI_LOG="$TMP_DIR/uci.log" INIT_LOG="$TMP_DIR/init.log"
+export UCI_LOG="$TMP_DIR/uci.log" INIT_LOG="$TMP_DIR/init.log" WAN_DEVICE=
 : > "$UCI_LOG"
 : > "$INIT_LOG"
 
-"$PLUGIN" list | python3 -c 'import json,sys; d=json.load(sys.stdin); assert "get_system_info" in d and "set_lan_config" in d and "set_dhcp_config" in d'
+"$PLUGIN" list | python3 -c 'import json,sys; d=json.load(sys.stdin); assert "get_system_info" in d and "set_lan_config" in d and "set_wan_config" in d and "device" in d["set_wan_config"]'
 
 run_call() {
 	method=$1
@@ -66,6 +109,7 @@ run_call() {
 		ROUTER_API_LIBEXEC_ROOT="$TMP_DIR/usr/libexec" \
 		ROUTER_API_NETWORK_INIT="$TMP_DIR/bin/network-init" \
 		ROUTER_API_DNSMASQ_INIT="$TMP_DIR/bin/dnsmasq-init" \
+		ROUTER_API_SYS_CLASS_NET="$TMP_DIR/sys-class-net" \
 		PATH="$TMP_DIR/bin:$PATH" "$PLUGIN" call "$method"
 }
 
@@ -87,17 +131,33 @@ fi
 	exit 1
 }
 
-if run_call set_wan_config '{"proto":"shell","ipaddr":"192.0.2.1"}' >/dev/null 2>&1; then
-	echo "FAIL: unsupported WAN protocol was accepted" >&2
+if run_call set_wan_config '{"proto":"dhcp"}' >/dev/null 2>&1; then
+	echo "FAIL: WAN without a selected device was accepted" >&2
+	exit 1
+fi
+if run_call set_wan_config '{"proto":"dhcp","device":"eth0"}' >/dev/null 2>&1; then
+	echo "FAIL: LAN bridge member was accepted as WAN" >&2
+	exit 1
+fi
+if run_call set_wan_config '{"proto":"dhcp","device":"eth1;reboot"}' >/dev/null 2>&1; then
+	echo "FAIL: invalid WAN device name was accepted" >&2
+	exit 1
+fi
+if run_call set_wan_config '{"proto":"static","device":"eth1","ipaddr":"192.0.2.10","netmask":"255.255.255.0"}' >/dev/null 2>&1; then
+	echo "FAIL: static WAN without a gateway was accepted" >&2
 	exit 1
 fi
 
-WAN=$(run_call set_wan_config '{"proto":"static","ipaddr":"192.0.2.10","netmask":"255.255.255.0"}')
+WAN=$(run_call set_wan_config '{"proto":"static","device":"eth1","ipaddr":"192.0.2.10","netmask":"255.255.255.0","gateway":"192.0.2.1"}')
 printf '%s\n' "$WAN" | python3 -c 'import json,sys; assert json.load(sys.stdin)["status"]=="ok"'
-grep -Fq 'set network.wan.ipaddr=192.0.2.10' "$UCI_LOG"
+grep -Fq 'set network.wan.device=eth1' "$UCI_LOG"
+grep -Fq 'set network.wan.gateway=192.0.2.1' "$UCI_LOG"
 
-DHCP=$(run_call set_dhcp_config '{"start":"100","limit":"150","leasetime":"12h"}')
+DHCP=$(run_call set_wan_config '{"proto":"dhcp","device":"eth1"}')
 printf '%s\n' "$DHCP" | python3 -c 'import json,sys; assert json.load(sys.stdin)["status"]=="ok"'
+
+DHCP_LAN=$(run_call set_dhcp_config '{"start":"100","limit":"150","leasetime":"12h"}')
+printf '%s\n' "$DHCP_LAN" | python3 -c 'import json,sys; assert json.load(sys.stdin)["status"]=="ok"'
 grep -Fq 'set dhcp.lan.leasetime=12h' "$UCI_LOG"
 grep -Fq 'dnsmasq reload' "$INIT_LOG"
 
@@ -105,4 +165,8 @@ if run_call set_dhcp_config '{"start":"250","limit":"20","leasetime":"12h"}' >/d
 	echo "FAIL: invalid DHCP range was accepted" >&2
 	exit 1
 fi
-echo "RouterOS rpcd plugin protocol and UCI validation tests passed."
+if run_call set_dhcp_config '{"start":"100","limit":"150","leasetime":"99d"}' >/dev/null 2>&1; then
+	echo "FAIL: excessive DHCP lease was accepted" >&2
+	exit 1
+fi
+echo "RouterOS rpcd plugin protocol, ACL, WAN device and UCI validation tests passed."

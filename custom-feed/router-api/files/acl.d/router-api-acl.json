@@ -10,14 +10,6 @@
 					"get_device_info",
 					"list_backups"
 				]
-			},
-			"uci": ["system", "network", "firewall", "dhcp"],
-			"file": {
-				"/usr/libexec/router-core/router-status": "read",
-				"/usr/libexec/router-net/check-network-health.sh": "read",
-				"/usr/libexec/router-monitor/router-monitor-system": "read",
-				"/usr/libexec/router-monitor/router-monitor-network": "read",
-				"/usr/libexec/router-device/router-device-info": "read"
 			}
 		}
 	},
@@ -31,10 +23,6 @@
 					"set_wan_config",
 					"set_dhcp_config"
 				]
-			},
-			"uci": ["network", "dhcp"],
-			"file": {
-				"/usr/libexec/router-backup/router-backup": "execute"
 			}
 		}
 	},

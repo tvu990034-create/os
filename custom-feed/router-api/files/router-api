@@ -10,6 +10,8 @@ DNSMASQ_INIT=$ROUTER_API_DNSMASQ_INIT
 [ -n "$DNSMASQ_INIT" ] || DNSMASQ_INIT=/etc/init.d/dnsmasq
 JSHN_LIB=$ROUTER_API_JSHN_LIB
 [ -n "$JSHN_LIB" ] || JSHN_LIB=/usr/share/libubox/jshn.sh
+SYS_CLASS_NET=$ROUTER_API_SYS_CLASS_NET
+[ -n "$SYS_CLASS_NET" ] || SYS_CLASS_NET=/sys/class/net
 
 die() {
 	printf 'router-api: %s\n' "$*" >&2
@@ -79,6 +81,22 @@ valid_netmask() {
 	'
 }
 
+valid_ifname() {
+	case "$1" in
+		''|lo|*[!a-zA-Z0-9_.:-]*) return 1 ;;
+	esac
+	[ "${#1}" -le 15 ] && [ -e "$SYS_CLASS_NET/$1" ]
+}
+
+reject_lan_device() {
+	lan_device=$(uci -q get network.lan.device 2>/dev/null || true)
+	[ "$1" != "$lan_device" ] || die "WAN device cannot be the LAN device"
+	[ ! -e "$SYS_CLASS_NET/$1/master" ] || die "WAN device is already attached to a master device"
+	for bridge_member in "$SYS_CLASS_NET"/*/brif/"$1"; do
+		[ ! -e "$bridge_member" ] || die "WAN device is already a member of a bridge"
+	done
+}
+
 valid_dhcp_range() {
 	case "$1:$2" in *:*[!0-9]*|*[!0-9]*:*) return 1 ;; esac
 	awk -v start="$1" -v limit="$2" 'BEGIN {
@@ -120,7 +138,7 @@ case "$1" in
   "backup_config": {},
   "list_backups": {},
   "set_lan_config": { "ipaddr": "", "netmask": "" },
-  "set_wan_config": { "proto": "", "ipaddr": "", "netmask": "" },
+  "set_wan_config": { "proto": "", "device": "", "ipaddr": "", "netmask": "", "gateway": "" },
   "set_dhcp_config": { "start": "", "limit": "", "leasetime": "" }
 }
 JSON
@@ -157,25 +175,35 @@ case "$method" in
 		;;
 	set_wan_config)
 		json_get_var PROTO proto
+		json_get_var REQUEST_DEVICE device
 		json_get_var IPADDR ipaddr
 		json_get_var NETMASK netmask
+		json_get_var GATEWAY gateway
+		case "$PROTO" in dhcp|static) ;; *) die "proto must be either 'dhcp' or 'static'" ;; esac
+		DEVICE=$REQUEST_DEVICE
+		[ -n "$DEVICE" ] || DEVICE=$(uci -q get network.wan.device 2>/dev/null || true)
+		valid_ifname "$DEVICE" || die "a valid existing WAN device is required"
+		reject_lan_device "$DEVICE"
+		if [ "$PROTO" = static ]; then
+			[ -n "$NETMASK" ] || NETMASK=255.255.255.0
+			valid_ipv4 "$IPADDR" || die "static WAN requires a valid IPv4 ipaddr"
+			valid_netmask "$NETMASK" || die "netmask must be a contiguous IPv4 netmask"
+			valid_ipv4 "$GATEWAY" || die "static WAN requires a valid IPv4 gateway"
+		fi
+		uci -q get network.wan >/dev/null 2>&1 || uci set network.wan=interface
+		uci set network.wan.device="$DEVICE" || die "could not set WAN device"
+		uci set network.wan.proto="$PROTO" || die "could not set WAN protocol"
 		case "$PROTO" in
 			dhcp)
-				uci -q get network.wan >/dev/null 2>&1 || uci set network.wan=interface
-				uci set network.wan.proto=dhcp || die "could not set WAN protocol"
 				uci -q delete network.wan.ipaddr >/dev/null 2>&1 || true
 				uci -q delete network.wan.netmask >/dev/null 2>&1 || true
+				uci -q delete network.wan.gateway >/dev/null 2>&1 || true
 				;;
 			static)
-				[ -n "$NETMASK" ] || NETMASK=255.255.255.0
-				valid_ipv4 "$IPADDR" || die "static WAN requires a valid IPv4 ipaddr"
-				valid_netmask "$NETMASK" || die "netmask must be a contiguous IPv4 netmask"
-				uci -q get network.wan >/dev/null 2>&1 || uci set network.wan=interface
-				uci set network.wan.proto=static || die "could not set WAN protocol"
 				uci set network.wan.ipaddr="$IPADDR" || die "could not set WAN address"
 				uci set network.wan.netmask="$NETMASK" || die "could not set WAN netmask"
+				uci set network.wan.gateway="$GATEWAY" || die "could not set WAN gateway"
 				;;
-			*) die "proto must be either 'dhcp' or 'static'" ;;
 		esac
 		reload_network
 		;;

@@ -6,7 +6,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=router-api
-PKG_RELEASE:=2
+PKG_RELEASE:=3
 PKG_LICENSE:=GPL-2.0-only
 PKG_MAINTAINER:=Router OS Project
 
@@ -22,7 +22,7 @@ endef
 
 define Package/router-api/description
  Executable rpcd plugin exposing JSON-based RouterOS status and configuration
- methods through ubus. Request values are validated before UCI is changed.
+ methods through ubus. Network requests are validated before UCI is changed.
 endef
 
 define Package/router-api/postinst

@@ -28,6 +28,12 @@ apply_simple_qos() {
 	# Add Cake scheduler
 	if tc qdisc add dev "$iface" root cake bandwidth "$bandwidth" 2>/dev/null; then
 		log "Applied Cake QoS on $iface with bandwidth $bandwidth"
+		# Persist configuration via UCI
+		uci set qos."$iface"=qos
+		uci set qos."$iface".interface="$iface"
+		uci set qos."$iface".bandwidth="$bandwidth"
+		uci set qos."$iface".enabled="1"
+		uci commit qos
 		echo "QoS applied successfully"
 	else
 		log "Failed to apply Cake QoS, trying HTB"
@@ -36,6 +42,13 @@ apply_simple_qos() {
 		tc class add dev "$iface" parent 1: classid 1:1 htb rate "$bandwidth"
 		tc class add dev "$iface" parent 1:1 classid 1:10 htb rate "$bandwidth"
 		log "Applied HTB QoS on $iface with bandwidth $bandwidth"
+		# Persist via UCI
+		uci set qos."$iface"=qos
+		uci set qos."$iface".interface="$iface"
+		uci set qos."$iface".bandwidth="$bandwidth"
+		uci set qos."$iface".scheduler="htb"
+		uci set qos."$iface".enabled="1"
+		uci commit qos
 		echo "QoS applied successfully (HTB fallback)"
 	fi
 }
